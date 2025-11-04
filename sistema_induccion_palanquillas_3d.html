@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Calentamiento por Inducción - Palanquillas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #canvas3d {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #info-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 25px;
+            border-radius: 15px;
+            border: 2px solid #ff6b35;
+            backdrop-filter: blur(10px);
+            max-width: 350px;
+            z-index: 100;
+        }
+
+        #info-panel h1 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: #ff6b35;
+            border-bottom: 2px solid #ff6b35;
+            padding-bottom: 10px;
+        }
+
+        .info-section {
+            margin: 15px 0;
+        }
+
+        .info-section h3 {
+            font-size: 14px;
+            color: #ffd700;
+            margin-bottom: 8px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 13px;
+        }
+
+        .info-label {
+            color: #aaa;
+        }
+
+        .info-value {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid #4ecdc4;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        .control-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            margin: 5px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.5);
+        }
+
+        .control-btn.active {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        #temperature-display {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid #f5576c;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            min-width: 200px;
+        }
+
+        #temperature-display h3 {
+            color: #f5576c;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .temp-bar {
+            background: #333;
+            height: 30px;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 10px 0;
+            position: relative;
+        }
+
+        .temp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ecdc4 0%, #ff6b35 50%, #ff0000 100%);
+            transition: width 0.5s;
+            border-radius: 15px;
+        }
+
+        .temp-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+            font-size: 14px;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+        }
+
+        #legend {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #4ecdc4;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        /* Panel de Costos (derecha) */
+        #cost-panel {
+            position: fixed;
+            top: 120px;
+            right: 20px;
+            width: 360px;
+            max-height: 70vh;
+            overflow: auto;
+            background: rgba(0,0,0,0.85);
+            border: 2px solid #ffd166;
+            border-radius: 12px;
+            padding: 16px;
+            backdrop-filter: blur(10px);
+            z-index: 120;
+        }
+        .cost-title { color:#ffd166; font-size:18px; margin-bottom:8px; }
+        .cost-item { display:flex; justify-content:space-between; padding:10px 8px; border-bottom:1px solid rgba(255,255,255,0.08); }
+        .cost-name { color:#eee; font-size:13px; }
+        .cost-price { background:#111; border:1px solid #ffd166; padding:4px 10px; border-radius:20px; font-weight:bold; }
+
+        /* Panel de Control (izquierda) */
+        #control-panel {
+            position: fixed;
+            top: 120px;
+            left: 20px;
+            width: 320px;
+            background: rgba(0,0,0,0.85);
+            border: 2px solid #4ecdc4;
+            border-radius: 12px;
+            padding: 16px;
+            backdrop-filter: blur(10px);
+            z-index: 120;
+        }
+        #control-panel h3 { color:#4ecdc4; margin-bottom:10px; }
+        .ctrl-row { margin:10px 0; font-size:13px; }
+        .ctrl-row input[type="range"] { width:100%; }
+        .ctrl-toggle { display:flex; align-items:center; gap:8px; }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 12px;
+        }
+
+        .legend-color {
+            width: 25px;
+            height: 25px;
+            border-radius: 5px;
+            margin-right: 10px;
+            border: 1px solid #fff;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        .heating-glow {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="canvas3d"></canvas>
+    </div>
+
+    <!-- Panel de Información -->
+    <div id="info-panel">
+        <h1>🔥 Sistema de Inducción</h1>
+        
+        <div class="info-section">
+            <h3>📏 Palanquilla</h3>
+            <div class="info-item">
+                <span class="info-label">Sección:</span>
+                <span class="info-value">130×130 mm</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Longitud:</span>
+                <span class="info-value">12.0 m</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Peso:</span>
+                <span class="info-value">1,590 kg</span>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <h3>⚡ Bobinas de Inducción</h3>
+            <div class="info-item">
+                <span class="info-label">Cantidad:</span>
+                <span class="info-value">8 unidades</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Potencia/bobina:</span>
+                <span class="info-value">150 kW</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Total:</span>
+                <span class="info-value">1,200 kW</span>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <h3>🌡️ Proceso</h3>
+            <div class="info-item">
+                <span class="info-label">Temp. inicial:</span>
+                <span class="info-value">20°C</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Temp. objetivo:</span>
+                <span class="info-value">1,200°C</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Tiempo:</span>
+                <span class="info-value">6-10 min</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Display de Temperatura -->
+    <div id="temperature-display">
+        <h3>🌡️ TEMPERATURA</h3>
+        <div class="temp-bar">
+            <div class="temp-fill" id="temp-fill" style="width: 0%"></div>
+            <div class="temp-label" id="temp-label">20°C</div>
+        </div>
+        <div style="text-align: center; margin-top: 10px; font-size: 12px; color: #aaa;">
+            Objetivo: 1,200°C
+        </div>
+    </div>
+
+    <!-- Controles -->
+    <div id="controls">
+        <button class="control-btn active" onclick="toggleAnimation()">▶️ INICIAR CALENTAMIENTO</button>
+        <button class="control-btn" onclick="resetSystem()">🔄 REINICIAR</button>
+        <button class="control-btn" onclick="changeView('iso')">📐 Vista Isométrica</button>
+        <button class="control-btn" onclick="changeView('top')">⬇️ Vista Superior</button>
+        <button class="control-btn" onclick="changeView('side')">➡️ Vista Lateral</button>
+    </div>
+
+    <!-- Leyenda -->
+    <div id="legend">
+        <div class="legend-item">
+            <div class="legend-color" style="background: #888;"></div>
+            <span>Palanquilla (fría)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ff6b35;"></div>
+            <span>Palanquilla (caliente)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ffa500;"></div>
+            <span>Bobinas de inducción</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #666;"></div>
+            <span>Estructura</span>
+        </div>
+    </div>
+
+    <!-- Panel de Costos (según blueprint) -->
+    <div id="cost-panel">
+        <div class="cost-section">
+            <div class="cost-title">Equipo Principal</div>
+            <div class="cost-item"><span class="cost-name">Horno de Inducción (3500 kW)</span><span class="cost-price">$450.000</span></div>
+            <div class="cost-item"><span class="cost-name">Sistema de Fundición (crisol)</span><span class="cost-price">$85.000</span></div>
+            <div class="cost-item"><span class="cost-name">Colada Continua 150×150 mm</span><span class="cost-price">$320.000</span></div>
+            <div class="cost-item"><span class="cost-name">Moldeadora de Bolas</span><span class="cost-price">$180.000</span></div>
+        </div>
+        <div class="cost-section" style="margin-top:12px;">
+            <div class="cost-title">Equipos Auxiliares</div>
+            <div class="cost-item"><span class="cost-name">Transformador 4000 kVA</span><span class="cost-price">$120.000</span></div>
+            <div class="cost-item"><span class="cost-name">Sistema de Enfriamiento 500 m³/h</span><span class="cost-price">$65.000</span></div>
+            <div class="cost-item"><span class="cost-name">Grúa Puente 15 t</span><span class="cost-price">$95.000</span></div>
+            <div class="cost-item"><span class="cost-name">Filtración de Humos</span><span class="cost-price">$75.000</span></div>
+            <div class="cost-item"><span class="cost-name">Cargador de Chatarra</span><span class="cost-price">$48.000</span></div>
+        </div>
+        <div class="cost-section" style="margin-top:12px;">
+            <div class="cost-title">Sistemas de Control</div>
+            <div class="cost-item"><span class="cost-name">PLC + SCADA</span><span class="cost-price">$55.000</span></div>
+            <div class="cost-item"><span class="cost-name">Sensores y Medición</span><span class="cost-price">$28.000</span></div>
+            <div class="cost-item"><span class="cost-name">Sistema de Seguridad</span><span class="cost-price">$22.000</span></div>
+        </div>
+    </div>
+
+    <!-- Panel de Control de Proceso -->
+    <div id="control-panel">
+        <h3>🧠 Control de Proceso</h3>
+        <div class="ctrl-row">
+            Potencia del Horno: <span id="kw-label">600 kW</span>
+            <input type="range" id="kw-slider" min="100" max="3500" value="600" oninput="setPower(this.value)">
+        </div>
+        <div class="ctrl-row">
+            Flujo de Agua: <span id="flow-label">50%</span>
+            <input type="range" id="flow-slider" min="0" max="100" value="50" oninput="setFlow(this.value)">
+        </div>
+        <div class="ctrl-row ctrl-toggle">
+            <input type="checkbox" id="emerg" onchange="toggleEmergency(this.checked)"> Parada de Emergencia
+        </div>
+        <div class="ctrl-row ctrl-toggle">
+            <input type="checkbox" id="scada" checked> SCADA Online
+        </div>
+    </div>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // ========================================================================
+        // CONFIGURACIÓN INICIAL
+        // ========================================================================
+        
+        let scene, camera, renderer;
+        let billet, coils = [], rollers = [], particles = [];
+        let isAnimating = false;
+        let currentTemp = 20;
+        let targetTemp = 1200;
+        let heatingSpeed = 2;
+
+        // ========================================================================
+        // INICIALIZACIÓN
+        // ========================================================================
+        
+        function init() {
+            // Escena
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            scene.fog = new THREE.Fog(0x0a0a0a, 50, 200);
+
+            // Cámara
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(40, 15, 30);
+            camera.lookAt(0, 0, 0);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas3d'), antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            // Iluminación
+            const ambientLight = new THREE.AmbientLight(0x404040, 1);
+            scene.add(ambientLight);
+
+            const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            mainLight.position.set(20, 30, 20);
+            mainLight.castShadow = true;
+            mainLight.shadow.mapSize.width = 2048;
+            mainLight.shadow.mapSize.height = 2048;
+            scene.add(mainLight);
+
+            // Grid
+            const gridHelper = new THREE.GridHelper(100, 50, 0x444444, 0x222222);
+            scene.add(gridHelper);
+
+            // Ejes
+            const axesHelper = new THREE.AxesHelper(15);
+            scene.add(axesHelper);
+
+            // Crear componentes
+            createBillet();
+            createCoils();
+            createRollers();
+            createStructure();
+
+            // Eventos
+            window.addEventListener('resize', onWindowResize);
+            
+            // Mouse controls
+            let isDragging = false;
+            let previousMousePosition = { x: 0, y: 0 };
+            
+            renderer.domElement.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+            
+            renderer.domElement.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    const deltaX = e.clientX - previousMousePosition.x;
+                    const deltaY = e.clientY - previousMousePosition.y;
+                    
+                    camera.position.x += deltaX * 0.05;
+                    camera.position.y -= deltaY * 0.05;
+                    camera.lookAt(0, 0, 20);
+                    
+                    previousMousePosition = { x: e.clientX, y: e.clientY };
+                }
+            });
+            
+            renderer.domElement.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+            
+            renderer.domElement.addEventListener('wheel', (e) => {
+                camera.position.z += e.deltaY * 0.01;
+                camera.position.z = Math.max(10, Math.min(100, camera.position.z));
+            });
+
+            // Iniciar animación
+            animate();
+        }
+
+        // ========================================================================
+        // CREAR PALANQUILLA
+        // ========================================================================
+        
+        function createBillet() {
+            const geometry = new THREE.BoxGeometry(120, 1.3, 1.3); // horizontal (X)
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x888888,
+                metalness: 0.7,
+                roughness: 0.3,
+                emissive: 0x000000,
+                emissiveIntensity: 0
+            });
+            
+            billet = new THREE.Mesh(geometry, material);
+            billet.position.set(0, 0, 0);
+            billet.castShadow = true;
+            billet.receiveShadow = true;
+            scene.add(billet);
+        }
+
+        // ========================================================================
+        // CREAR BOBINAS DE INDUCCIÓN
+        // ========================================================================
+        
+        function createCoils() {
+            const coilCount = 8;
+            const spacing = 15;
+            
+            for (let i = 0; i < coilCount; i++) {
+                const coilGroup = new THREE.Group();
+                
+                // Anillo exterior
+                const outerGeometry = new THREE.TorusGeometry(3.4, 0.3, 16, 32);
+                const copperMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xffa500,
+                    metalness: 0.9,
+                    roughness: 0.2,
+                    emissive: 0xff6600,
+                    emissiveIntensity: 0.3
+                });
+                const outer = new THREE.Mesh(outerGeometry, copperMaterial);
+                coilGroup.add(outer);
+                
+                // Anillos internos (espiras)
+                for (let j = 0; j < 5; j++) {
+                    const innerGeometry = new THREE.TorusGeometry(3.2, 0.15, 12, 24);
+                    const inner = new THREE.Mesh(innerGeometry, copperMaterial.clone());
+                    inner.position.z = (j - 2) * 0.4;
+                    coilGroup.add(inner);
+                }
+                
+                // Luz de la bobina
+                const coilLight = new THREE.PointLight(0xff6600, 0, 10);
+                coilLight.name = 'coilLight';
+                coilGroup.add(coilLight);
+                
+                // orientar bobina para que su eje sea X (horizontal)
+                coilGroup.rotation.set(0, Math.PI / 2, 0);
+                coilGroup.position.x = -50 + i * spacing;
+                
+                coils.push(coilGroup);
+                scene.add(coilGroup);
+            }
+        }
+
+        // ========================================================================
+        // CREAR RODILLOS
+        // ========================================================================
+        
+        function createRollers() {
+            const rollerCount = 20;
+            const spacing = 6;
+            
+            for (let i = 0; i < rollerCount; i++) {
+                const geometry = new THREE.CylinderGeometry(0.8, 0.8, 4, 16);
+                const material = new THREE.MeshStandardMaterial({
+                    color: 0x333333,
+                    metalness: 0.8,
+                    roughness: 0.4
+                });
+                
+                const roller = new THREE.Mesh(geometry, material);
+                // rodillo transversal, bajo la palanquilla
+                roller.rotation.x = Math.PI / 2; // eje Y
+                roller.position.set(-60 + i * spacing, -2, 0);
+                roller.castShadow = true;
+                
+                rollers.push(roller);
+                scene.add(roller);
+            }
+        }
+
+        // ========================================================================
+        // CREAR ESTRUCTURA
+        // ========================================================================
+        
+        function createStructure() {
+            const columnGeometry = new THREE.CylinderGeometry(0.5, 0.5, 15, 16);
+            const columnMaterial = new THREE.MeshStandardMaterial({
+                color: 0x555566,
+                metalness: 0.6,
+                roughness: 0.5
+            });
+            
+            const positions = [
+                [4, -7.5, 0],
+                [-4, -7.5, 0],
+                [4, -7.5, 40],
+                [-4, -7.5, 40]
+            ];
+            
+            positions.forEach(pos => {
+                const column = new THREE.Mesh(columnGeometry, columnMaterial);
+                column.position.set(...pos);
+                column.castShadow = true;
+                scene.add(column);
+            });
+
+            // Vigas superiores
+            const beamGeometry = new THREE.BoxGeometry(8, 0.3, 0.3);
+            const beam1 = new THREE.Mesh(beamGeometry, columnMaterial);
+            beam1.position.set(0, 0, -20);
+            scene.add(beam1);
+            
+            const beam2 = new THREE.Mesh(beamGeometry, columnMaterial);
+            beam2.position.set(0, 0, 20);
+            scene.add(beam2);
+        }
+
+        // ========================================================================
+        // ANIMACIÓN DE CALENTAMIENTO
+        // ========================================================================
+        
+        function updateHeating() {
+            if (!isAnimating) return;
+            
+            // Incrementar temperatura
+            if (currentTemp < targetTemp) {
+                currentTemp += heatingSpeed;
+                currentTemp = Math.min(currentTemp, targetTemp);
+            }
+            
+            // Calcular color de la palanquilla basado en temperatura
+            const tempRatio = currentTemp / targetTemp;
+            let color;
+            
+            if (tempRatio < 0.2) {
+                color = new THREE.Color(0x888888); // Gris
+            } else if (tempRatio < 0.4) {
+                color = new THREE.Color(0xaa6644); // Marrón rojizo
+            } else if (tempRatio < 0.6) {
+                color = new THREE.Color(0xff4422); // Rojo oscuro
+            } else if (tempRatio < 0.8) {
+                color = new THREE.Color(0xff6622); // Rojo brillante
+            } else {
+                color = new THREE.Color(0xff8833); // Naranja brillante
+            }
+            
+            billet.material.color = color;
+            billet.material.emissive = color;
+            billet.material.emissiveIntensity = tempRatio * 0.8;
+            
+            // Activar bobinas según la temperatura
+            coils.forEach((coil, index) => {
+                const coilLight = coil.getObjectByName('coilLight');
+                const activationTemp = (index + 1) * (targetTemp / coils.length);
+                
+                if (currentTemp >= activationTemp - 100) {
+                    const intensity = Math.min((currentTemp - (activationTemp - 100)) / 100, 1) * 2;
+                    coilLight.intensity = intensity;
+                    
+                    // Partículas de energía
+                    if (Math.random() > 0.7) {
+                        createEnergyParticle(coil.position.z);
+                    }
+                } else {
+                    coilLight.intensity = 0;
+                }
+            });
+            
+            // Actualizar UI
+            updateTemperatureDisplay();
+        }
+
+        // ========================================================================
+        // PARTÍCULAS DE ENERGÍA
+        // ========================================================================
+        
+        function createEnergyParticle(z) {
+            const geometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0xffaa00,
+                transparent: true,
+                opacity: 1
+            });
+            
+            const particle = new THREE.Mesh(geometry, material);
+            particle.position.set(
+                (Math.random() - 0.5) * 4,
+                (Math.random() - 0.5) * 4,
+                z
+            );
+            
+            particle.velocity = {
+                x: (Math.random() - 0.5) * 0.1,
+                y: (Math.random() - 0.5) * 0.1,
+                z: (Math.random() - 0.5) * 0.1
+            };
+            
+            particle.life = 60;
+            
+            particles.push(particle);
+            scene.add(particle);
+        }
+
+        function updateParticles() {
+            particles.forEach((particle, index) => {
+                particle.position.x += particle.velocity.x;
+                particle.position.y += particle.velocity.y;
+                particle.position.z += particle.velocity.z;
+                
+                particle.material.opacity = particle.life / 60;
+                particle.life--;
+                
+                if (particle.life <= 0) {
+                    scene.remove(particle);
+                    particles.splice(index, 1);
+                }
+            });
+        }
+
+        // ========================================================================
+        // UI Y CONTROLES
+        // ========================================================================
+        
+        function updateTemperatureDisplay() {
+            const percentage = (currentTemp / targetTemp) * 100;
+            document.getElementById('temp-fill').style.width = percentage + '%';
+            document.getElementById('temp-label').textContent = Math.round(currentTemp) + '°C';
+        }
+
+        function toggleAnimation() {
+            isAnimating = !isAnimating;
+            const btn = event.target;
+            
+            if (isAnimating) {
+                btn.textContent = '⏸️ PAUSAR';
+                btn.classList.add('active');
+            } else {
+                btn.textContent = '▶️ REANUDAR';
+                btn.classList.remove('active');
+            }
+        }
+
+        // Control Panel bindings
+        function setPower(val) {
+            document.getElementById('kw-label').textContent = Math.round(val) + ' kW';
+            // Mapear potencia a velocidad de calentamiento
+            heatingSpeed = 0.5 + (val / 3500) * 4.5; // 0.5..5.0
+        }
+        function setFlow(val) {
+            document.getElementById('flow-label').textContent = Math.round(val) + '%';
+            // Menor flujo ⇒ más temperatura objetivo
+            targetTemp = 1000 + (100 - val) * 2; // 1000..1200°C
+        }
+        function toggleEmergency(active) {
+            if (active) {
+                isAnimating = false;
+                const btn = document.querySelector('.control-btn');
+                btn.textContent = '▶️ REANUDAR';
+                btn.classList.remove('active');
+            }
+        }
+
+        function resetSystem() {
+            currentTemp = 20;
+            isAnimating = false;
+            
+            billet.material.color = new THREE.Color(0x888888);
+            billet.material.emissive = new THREE.Color(0x000000);
+            billet.material.emissiveIntensity = 0;
+            
+            coils.forEach(coil => {
+                const coilLight = coil.getObjectByName('coilLight');
+                coilLight.intensity = 0;
+            });
+            
+            particles.forEach(particle => scene.remove(particle));
+            particles = [];
+            
+            updateTemperatureDisplay();
+            
+            const btn = document.querySelector('.control-btn');
+            btn.textContent = '▶️ INICIAR CALENTAMIENTO';
+            btn.classList.add('active');
+        }
+
+        function changeView(view) {
+            switch(view) {
+                case 'iso':
+                    camera.position.set(30, 20, 40);
+                    break;
+                case 'top':
+                    camera.position.set(0, 50, 20);
+                    break;
+                case 'side':
+                    camera.position.set(50, 0, 20);
+                    break;
+            }
+            camera.lookAt(0, 0, 20);
+        }
+
+        // ========================================================================
+        // LOOP DE ANIMACIÓN
+        // ========================================================================
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            updateHeating();
+            updateParticles();
+            
+            // Rotar bobinas sutilmente
+            coils.forEach((coil, i) => {
+                if (isAnimating) {
+                    coil.rotation.z += 0.02;
+                }
+            });
+            
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // ========================================================================
+        // INICIAR
+        // ========================================================================
+        
+        init();
+    </script>
+</body>
+</html>
+

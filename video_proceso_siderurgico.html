@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video - Proceso Producción de Palanquilla</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #000;
+            overflow: hidden;
+        }
+
+        #videoContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #canvas {
+            border: 3px solid #c92a2a;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        #controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px 40px;
+            border-radius: 50px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            border: 2px solid #c92a2a;
+        }
+
+        .control-btn {
+            background: linear-gradient(135deg, #c92a2a 0%, #a61e1e 100%);
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.3em;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .control-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 20px rgba(201, 42, 42, 0.5);
+        }
+
+        .control-btn.play {
+            width: 60px;
+            height: 60px;
+            font-size: 1.5em;
+        }
+
+        #progressBar {
+            width: 300px;
+            height: 8px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #progress {
+            height: 100%;
+            background: linear-gradient(90deg, #c92a2a 0%, #ff6b6b 100%);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        #stageInfo {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 800px;
+            border: 2px solid #c92a2a;
+            backdrop-filter: blur(10px);
+        }
+
+        #stageInfo h2 {
+            color: #ff6b6b;
+            margin-bottom: 10px;
+            font-size: 1.8em;
+        }
+
+        #stageInfo p {
+            font-size: 1.1em;
+            line-height: 1.5;
+        }
+
+        #timeDisplay {
+            color: #fff;
+            font-size: 1.2em;
+            font-weight: bold;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #ff6b6b;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: sparkle 1s ease-out forwards;
+        }
+
+        @keyframes sparkle {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0) translateY(-50px);
+            }
+        }
+
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            color: white;
+        }
+
+        #loading h1 {
+            font-size: 3em;
+            color: #ff6b6b;
+            margin-bottom: 30px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loader {
+            border: 5px solid #333;
+            border-top: 5px solid #c92a2a;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #speedControl {
+            color: white;
+            font-size: 0.9em;
+        }
+
+        #speedControl select {
+            background: #333;
+            color: white;
+            border: 1px solid #c92a2a;
+            padding: 5px 10px;
+            border-radius: 5px;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <h1>🏭 PLANTA SIDERÚRGICA 🏭</h1>
+        <div class="loader"></div>
+        <p style="margin-top: 20px; font-size: 1.2em;">Cargando animación del proceso...</p>
+    </div>
+
+    <div id="videoContainer">
+        <canvas id="canvas" width="1400" height="800"></canvas>
+    </div>
+
+    <div id="stageInfo">
+        <h2 id="stageName">Iniciando Proceso</h2>
+        <p id="stageDesc">Preparando la línea de producción...</p>
+    </div>
+
+    <div id="controls">
+        <button class="control-btn" onclick="restart()">⏮️</button>
+        <button class="control-btn play" id="playPauseBtn" onclick="togglePlay()">▶️</button>
+        <button class="control-btn" onclick="skipForward()">⏭️</button>
+        <div id="progressBar">
+            <div id="progress"></div>
+        </div>
+        <div id="timeDisplay">0:00</div>
+        <div id="speedControl">
+            Velocidad: 
+            <select id="speedSelect" onchange="changeSpeed()">
+                <option value="0.5">0.5x</option>
+                <option value="1" selected>1x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2x</option>
+            </select>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let isPlaying = false;
+        let currentTime = 0;
+        let totalDuration = 120; // 120 segundos = 2 minutos
+        let animationSpeed = 1;
+        let lastTimestamp = 0;
+
+        // Etapas del proceso
+        const stages = [
+            {
+                start: 0,
+                end: 15,
+                name: "1. RECEPCIÓN DE BRIQUETAS (HBI)",
+                description: "Las briquetas de hierro llegan a la planta y se almacenan en silos",
+                color: "#ffd8a8"
+            },
+            {
+                start: 15,
+                end: 25,
+                name: "2. TRANSPORTE Y DOSIFICACIÓN",
+                description: "Sistema de cintas transporta el HBI hacia el horno con dosificación precisa",
+                color: "#ffc9c9"
+            },
+            {
+                start: 25,
+                end: 50,
+                name: "3. HORNO ELÉCTRICO DE ARCO (EAF)",
+                description: "Fusión a 1,650°C mediante arco eléctrico. 100 toneladas en 60-75 minutos",
+                color: "#ff6b6b"
+            },
+            {
+                start: 50,
+                end: 65,
+                name: "4. HORNO CUCHARA (AFINO)",
+                description: "Ajuste fino de temperatura y composición química del acero líquido",
+                color: "#ffa07a"
+            },
+            {
+                start: 65,
+                end: 90,
+                name: "5. COLADA CONTINUA",
+                description: "Solidificación del acero en 4 líneas formando palanquillas 130x130mm",
+                color: "#a5d8ff"
+            },
+            {
+                start: 90,
+                end: 100,
+                name: "6. CORTE Y MARCADO",
+                description: "Corte automático por oxicorte a longitudes de 6-12 metros",
+                color: "#74c0fc"
+            },
+            {
+                start: 100,
+                end: 110,
+                name: "7. CONTROL DE CALIDAD",
+                description: "Inspección visual, dimensional y ensayos de laboratorio",
+                color: "#b2f2bb"
+            },
+            {
+                start: 110,
+                end: 120,
+                name: "8. ALMACENAMIENTO Y DESPACHO",
+                description: "Clasificación y empaque de palanquillas para entrega al cliente",
+                color: "#51cf66"
+            }
+        ];
+
+        // Variables de animación
+        let particles = [];
+        let hbiLevel = 100;
+        let moltenSteel = 0;
+        let furnaceTemp = 0;
+        let billets = [];
+
+        function getCurrentStage() {
+            for (let stage of stages) {
+                if (currentTime >= stage.start && currentTime < stage.end) {
+                    return stage;
+                }
+            }
+            return stages[stages.length - 1];
+        }
+
+        function updateStageInfo() {
+            const stage = getCurrentStage();
+            document.getElementById('stageName').textContent = stage.name;
+            document.getElementById('stageDesc').textContent = stage.description;
+        }
+
+        function drawBackground() {
+            // Fondo degradado
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#1a1a2e');
+            gradient.addColorStop(1, '#0f3460');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Suelo
+            ctx.fillStyle = '#2a2a3e';
+            ctx.fillRect(0, 650, canvas.width, 150);
+
+            // Líneas de suelo
+            ctx.strokeStyle = '#3a3a4e';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < canvas.width; i += 50) {
+                ctx.beginPath();
+                ctx.moveTo(i, 650);
+                ctx.lineTo(i, 800);
+                ctx.stroke();
+            }
+        }
+
+        function drawSilo(x, y, level) {
+            // Base del silo
+            ctx.fillStyle = '#555';
+            ctx.fillRect(x - 10, y + 180, 140, 30);
+            
+            // Cuerpo del silo con gradiente
+            const gradient = ctx.createLinearGradient(x, y, x + 120, y);
+            gradient.addColorStop(0, '#666');
+            gradient.addColorStop(0.5, '#888');
+            gradient.addColorStop(1, '#555');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x, y, 120, 180);
+            
+            // Líneas verticales (efecto metal)
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 2;
+            for (let i = 0; i <= 120; i += 30) {
+                ctx.beginPath();
+                ctx.moveTo(x + i, y);
+                ctx.lineTo(x + i, y + 180);
+                ctx.stroke();
+            }
+            
+            // Tapa cónica del silo
+            ctx.fillStyle = '#777';
+            ctx.beginPath();
+            ctx.moveTo(x - 10, y);
+            ctx.lineTo(x + 60, y - 50);
+            ctx.lineTo(x + 130, y);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Sombra de la tapa
+            ctx.fillStyle = '#444';
+            ctx.beginPath();
+            ctx.moveTo(x + 60, y - 50);
+            ctx.lineTo(x + 130, y);
+            ctx.lineTo(x + 120, y);
+            ctx.lineTo(x + 60, y - 45);
+            ctx.closePath();
+            ctx.fill();
+
+            // Ventana transparente
+            ctx.fillStyle = 'rgba(150, 200, 255, 0.3)';
+            ctx.fillRect(x + 20, y + 20, 80, 140);
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x + 20, y + 20, 80, 140);
+
+            // Nivel de llenado HBI
+            const fillHeight = (level / 100) * 130;
+            ctx.fillStyle = '#d4a574';
+            ctx.fillRect(x + 25, y + 160 - fillHeight, 70, fillHeight);
+            
+            // Textura del HBI (pequeños bloques)
+            ctx.fillStyle = '#c89666';
+            for (let i = 0; i < 20; i++) {
+                const bx = x + 30 + Math.random() * 60;
+                const by = y + 160 - fillHeight + Math.random() * fillHeight;
+                ctx.fillRect(bx, by, 3, 3);
+            }
+
+            // Panel de control
+            ctx.fillStyle = '#222';
+            ctx.fillRect(x + 5, y + 60, 30, 40);
+            
+            // Indicadores
+            ctx.fillStyle = level > 50 ? '#0f0' : level > 20 ? '#ff0' : '#f00';
+            ctx.beginPath();
+            ctx.arc(x + 15, y + 75, 5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.arc(x + 15, y + 90, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Etiqueta con fondo
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.fillRect(x + 10, y + 200, 100, 35);
+            ctx.fillStyle = '#ffd700';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('SILO HBI', x + 60, y + 218);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 14px Arial';
+            ctx.fillText(Math.round(level) + '%', x + 60, y + 232);
+        }
+
+        function drawConveyorBelt(x, y, width, active) {
+            // Cinta transportadora
+            ctx.fillStyle = '#333';
+            ctx.fillRect(x, y, width, 20);
+
+            if (active) {
+                // Movimiento de la cinta
+                ctx.fillStyle = '#555';
+                const offset = (currentTime * 20) % 40;
+                for (let i = -40; i < width; i += 40) {
+                    ctx.fillRect(x + i + offset, y + 5, 30, 10);
+                }
+
+                // Material en la cinta
+                for (let i = 0; i < 5; i++) {
+                    const beltOffset = (currentTime * 30 + i * 60) % width;
+                    ctx.fillStyle = '#ffd8a8';
+                    ctx.fillRect(x + beltOffset, y - 10, 15, 15);
+                }
+            }
+
+            // Soportes
+            ctx.fillStyle = '#222';
+            for (let i = 0; i <= width; i += 100) {
+                ctx.fillRect(x + i - 5, y + 20, 10, 30);
+            }
+        }
+
+        function drawFurnace(x, y, temp) {
+            const intensity = temp / 1650;
+            
+            // Estructura externa reforzada
+            ctx.fillStyle = '#2a2a2a';
+            ctx.fillRect(x - 20, y - 10, 280, 250);
+            
+            // Vigas de soporte
+            ctx.fillStyle = '#555';
+            ctx.fillRect(x - 20, y - 10, 15, 250);
+            ctx.fillRect(x + 245, y - 10, 15, 250);
+            ctx.fillRect(x - 5, y + 60, 250, 10);
+            
+            // Cuerpo principal del horno (refractario)
+            const bodyGradient = ctx.createLinearGradient(x, y, x + 240, y);
+            bodyGradient.addColorStop(0, '#3a3a3a');
+            bodyGradient.addColorStop(0.5, '#4a4a4a');
+            bodyGradient.addColorStop(1, '#333');
+            ctx.fillStyle = bodyGradient;
+            ctx.fillRect(x, y, 240, 220);
+            
+            // Refractario interior visible
+            ctx.fillStyle = '#8b4513';
+            ctx.fillRect(x + 15, y + 15, 210, 190);
+
+            // Interior brillante del horno
+            if (intensity > 0) {
+                // Núcleo incandescente
+                const glowGradient = ctx.createRadialGradient(
+                    x + 120, y + 110, 20,
+                    x + 120, y + 110, 100
+                );
+                glowGradient.addColorStop(0, `rgba(255, 255, 200, ${intensity})`);
+                glowGradient.addColorStop(0.3, `rgba(255, ${200 - intensity * 100}, 0, ${intensity * 0.9})`);
+                glowGradient.addColorStop(0.7, `rgba(255, ${100 - intensity * 50}, 0, ${intensity * 0.6})`);
+                glowGradient.addColorStop(1, `rgba(200, 0, 0, ${intensity * 0.3})`);
+                ctx.fillStyle = glowGradient;
+                ctx.fillRect(x + 30, y + 30, 180, 160);
+                
+                // Arco eléctrico (rayos)
+                if (intensity > 0.3 && Math.random() > 0.5) {
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${intensity})`;
+                    ctx.lineWidth = 3;
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#fff';
+                    for (let i = 0; i < 3; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(x + 60 + i * 60, y);
+                        const bends = 5;
+                        for (let b = 0; b < bends; b++) {
+                            const bx = x + 60 + i * 60 + (Math.random() - 0.5) * 40;
+                            const by = y + (b + 1) * 30;
+                            ctx.lineTo(bx, by);
+                        }
+                        ctx.stroke();
+                    }
+                    ctx.shadowBlur = 0;
+                }
+                
+                // Partículas de fuego flotantes
+                for (let i = 0; i < 20; i++) {
+                    const px = x + 50 + Math.random() * 140;
+                    const py = y + 50 + Math.random() * 120;
+                    const psize = 2 + Math.random() * 8;
+                    const pAlpha = 0.4 + Math.random() * 0.4;
+                    
+                    ctx.fillStyle = `rgba(255, ${100 + Math.random() * 100}, 0, ${pAlpha * intensity})`;
+                    ctx.beginPath();
+                    ctx.arc(px, py, psize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Chispas
+                if (Math.random() > 0.6) {
+                    for (let i = 0; i < 5; i++) {
+                        const sx = x + 80 + Math.random() * 80;
+                        const sy = y + 80 + Math.random() * 80;
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath();
+                        ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
+
+            // Marco y refuerzos
+            ctx.strokeStyle = '#1a1a1a';
+            ctx.lineWidth = 6;
+            ctx.strokeRect(x, y, 240, 220);
+            
+            // Pernos de sujeción
+            ctx.fillStyle = '#666';
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    ctx.beginPath();
+                    ctx.arc(x + 30 + i * 90, y + 30 + j * 80, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Electrodos superiores (grafito)
+            for (let i = 0; i < 3; i++) {
+                const ex = x + 50 + i * 70;
+                
+                // Brazo del electrodo
+                ctx.fillStyle = '#555';
+                ctx.fillRect(ex - 10, y - 80, 40, 50);
+                
+                // Electrodo de grafito
+                const electrodeGradient = ctx.createLinearGradient(ex, y - 30, ex + 20, y - 30);
+                electrodeGradient.addColorStop(0, '#444');
+                electrodeGradient.addColorStop(0.5, '#666');
+                electrodeGradient.addColorStop(1, '#333');
+                ctx.fillStyle = electrodeGradient;
+                ctx.fillRect(ex, y - 30, 20, 40);
+                
+                // Punta del electrodo brillante
+                if (intensity > 0.2) {
+                    ctx.fillStyle = `rgba(255, 200, 0, ${intensity})`;
+                    ctx.fillRect(ex + 5, y + 5, 10, 10);
+                }
+                
+                // Cables
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(ex + 10, y - 80);
+                ctx.lineTo(ex + 10, y - 100);
+                ctx.stroke();
+            }
+
+            // Panel de control digital
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(x - 10, y + 10, 100, 80);
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x - 10, y + 10, 100, 80);
+            
+            // Pantalla de temperatura
+            ctx.fillStyle = '#000';
+            ctx.fillRect(x - 5, y + 15, 90, 45);
+            const tempColor = intensity > 0.8 ? '#ff3333' : intensity > 0.5 ? '#ff9933' : '#33ff33';
+            ctx.fillStyle = tempColor;
+            ctx.font = 'bold 22px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(Math.round(temp) + '°C', x + 40, y + 45);
+            
+            // Barra de potencia
+            ctx.fillStyle = '#333';
+            ctx.fillRect(x - 5, y + 65, 90, 20);
+            ctx.fillStyle = tempColor;
+            ctx.fillRect(x - 3, y + 67, (intensity * 86), 16);
+            
+            // Indicador LED
+            ctx.fillStyle = intensity > 0.5 ? '#f00' : '#0f0';
+            ctx.beginPath();
+            ctx.arc(x + 80, y + 20, 6, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Ventana de observación
+            ctx.fillStyle = '#222';
+            ctx.fillRect(x + 90, y + 120, 60, 50);
+            if (intensity > 0) {
+                ctx.fillStyle = `rgba(255, ${150 - intensity * 80}, 0, 0.8)`;
+                ctx.fillRect(x + 95, y + 125, 50, 40);
+            }
+            
+            // Puerta de carga inferior
+            ctx.fillStyle = '#2a2a2a';
+            ctx.fillRect(x + 85, y + 180, 70, 40);
+            ctx.strokeStyle = '#ff3333';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x + 85, y + 180, 70, 40);
+            
+            // Etiqueta
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+            ctx.fillRect(x + 20, y + 230, 200, 40);
+            ctx.fillStyle = '#ff6b6b';
+            ctx.font = 'bold 18px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('HORNO ELÉCTRICO EAF', x + 120, y + 252);
+            ctx.fillStyle = 'white';
+            ctx.font = '14px Arial';
+            ctx.fillText('100 toneladas', x + 120, y + 268);
+        }
+
+        function drawLadle(x, y, filled) {
+            // Cuchara de acero
+            ctx.fillStyle = '#555';
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + 20, y + 80);
+            ctx.lineTo(x + 80, y + 80);
+            ctx.lineTo(x + 100, y);
+            ctx.closePath();
+            ctx.fill();
+
+            if (filled) {
+                // Acero líquido
+                const gradient = ctx.createLinearGradient(x + 20, y, x + 20, y + 80);
+                gradient.addColorStop(0, '#ff8800');
+                gradient.addColorStop(1, '#ff3300');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.moveTo(x + 15, y + 20);
+                ctx.lineTo(x + 25, y + 75);
+                ctx.lineTo(x + 75, y + 75);
+                ctx.lineTo(x + 85, y + 20);
+                ctx.closePath();
+                ctx.fill();
+
+                // Brillo
+                ctx.fillStyle = 'rgba(255, 255, 100, 0.5)';
+                ctx.fillRect(x + 35, y + 25, 30, 10);
+            }
+
+            // Contorno
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + 20, y + 80);
+            ctx.lineTo(x + 80, y + 80);
+            ctx.lineTo(x + 100, y);
+            ctx.closePath();
+            ctx.stroke();
+        }
+
+        function drawContinuousCasting(x, y, active) {
+            // Estructura de soporte
+            ctx.fillStyle = '#2a2a2a';
+            ctx.fillRect(x - 10, y - 50, 380, 330);
+            
+            // Vigas estructurales
+            ctx.fillStyle = '#555';
+            ctx.fillRect(x - 10, y - 50, 10, 330);
+            ctx.fillRect(x + 360, y - 50, 10, 330);
+
+            // Distribuidor (Tundish) mejorado
+            ctx.fillStyle = '#444';
+            ctx.fillRect(x + 30, y - 60, 300, 70);
+            
+            // Interior del tundish
+            ctx.fillStyle = '#8b4513';
+            ctx.fillRect(x + 40, y - 50, 280, 50);
+
+            if (active) {
+                // Acero líquido brillante en tundish
+                const tundishGradient = ctx.createRadialGradient(
+                    x + 180, y - 25, 20,
+                    x + 180, y - 25, 140
+                );
+                tundishGradient.addColorStop(0, 'rgba(255, 255, 100, 0.9)');
+                tundishGradient.addColorStop(0.5, 'rgba(255, 150, 0, 0.8)');
+                tundishGradient.addColorStop(1, 'rgba(200, 50, 0, 0.6)');
+                ctx.fillStyle = tundishGradient;
+                ctx.fillRect(x + 45, y - 45, 270, 40);
+                
+                // Ondas en la superficie
+                ctx.strokeStyle = 'rgba(255, 200, 50, 0.5)';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 5; i++) {
+                    ctx.beginPath();
+                    ctx.arc(x + 100 + i * 40, y - 25, 10 + Math.sin(currentTime * 2 + i) * 5, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+            
+            // Soportes del tundish
+            ctx.fillStyle = '#333';
+            ctx.fillRect(x + 40, y - 60, 15, 15);
+            ctx.fillRect(x + 305, y - 60, 15, 15);
+
+            // Panel de la máquina de colada
+            ctx.fillStyle = '#3a3a3a';
+            ctx.fillRect(x, y, 360, 260);
+            
+            // Divisiones internas
+            ctx.fillStyle = '#2a2a2a';
+            for (let i = 1; i < 4; i++) {
+                ctx.fillRect(x + i * 90, y, 5, 260);
+            }
+
+            // 4 líneas de colada mejoradas
+            for (let i = 0; i < 4; i++) {
+                const lineX = x + 30 + i * 90;
+                
+                // Válvula sumergida (SEN)
+                if (active) {
+                    ctx.fillStyle = '#666';
+                    ctx.fillRect(lineX + 10, y - 10, 15, 15);
+                    
+                    // Flujo desde tundish
+                    ctx.fillStyle = 'rgba(255, 100, 0, 0.7)';
+                    ctx.fillRect(lineX + 14, y - 10, 7, 15);
+                }
+                
+                // Molde de cobre (mold)
+                ctx.fillStyle = '#b87333';
+                ctx.fillRect(lineX, y + 5, 40, 50);
+                
+                // Sistema de refrigeración del molde
+                ctx.strokeStyle = '#4a90e2';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(lineX - 2, y + 5, 44, 50);
+                
+                // Tuberías de agua
+                ctx.strokeStyle = '#4a90e2';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(lineX - 5, y + 20);
+                ctx.lineTo(lineX - 10, y + 20);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(lineX + 45, y + 20);
+                ctx.lineTo(lineX + 50, y + 20);
+                ctx.stroke();
+
+                if (active) {
+                    // Flujo de acero líquido solidificándose
+                    const steelGradient = ctx.createLinearGradient(lineX + 20, y + 5, lineX + 20, y + 250);
+                    steelGradient.addColorStop(0, 'rgba(255, 200, 0, 1)');
+                    steelGradient.addColorStop(0.15, 'rgba(255, 100, 0, 1)');
+                    steelGradient.addColorStop(0.35, 'rgba(200, 50, 0, 1)');
+                    steelGradient.addColorStop(0.55, 'rgba(150, 30, 30, 0.9)');
+                    steelGradient.addColorStop(0.75, 'rgba(100, 100, 100, 0.8)');
+                    steelGradient.addColorStop(1, 'rgba(130, 130, 130, 1)');
+                    ctx.fillStyle = steelGradient;
+                    ctx.fillRect(lineX + 8, y + 10, 24, 245);
+                    
+                    // Costra solidificada
+                    ctx.fillStyle = 'rgba(80, 80, 80, 0.6)';
+                    ctx.fillRect(lineX + 8, y + 30, 3, 220);
+                    ctx.fillRect(lineX + 29, y + 30, 3, 220);
+                    
+                    // Zona de enfriamiento secundario
+                    for (let j = 0; j < 8; j++) {
+                        const zoneY = y + 60 + j * 25;
+                        
+                        // Sprays de agua animados
+                        if (Math.random() > 0.3) {
+                            ctx.strokeStyle = 'rgba(100, 200, 255, 0.5)';
+                            ctx.lineWidth = 1;
+                            // Spray izquierdo
+                            for (let s = 0; s < 3; s++) {
+                                ctx.beginPath();
+                                ctx.moveTo(lineX - 5, zoneY);
+                                ctx.lineTo(lineX + 3 + Math.random() * 5, zoneY + 5);
+                                ctx.stroke();
+                            }
+                            // Spray derecho
+                            for (let s = 0; s < 3; s++) {
+                                ctx.beginPath();
+                                ctx.moveTo(lineX + 45, zoneY);
+                                ctx.lineTo(lineX + 32 + Math.random() * 5, zoneY + 5);
+                                ctx.stroke();
+                            }
+                        }
+                        
+                        // Vapor de agua
+                        if (Math.random() > 0.6) {
+                            ctx.fillStyle = 'rgba(200, 200, 255, 0.3)';
+                            ctx.beginPath();
+                            ctx.arc(lineX - 8, zoneY + 5, 4, 0, Math.PI * 2);
+                            ctx.fill();
+                            ctx.beginPath();
+                            ctx.arc(lineX + 48, zoneY + 5, 4, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                    
+                    // Palanquilla solidificada al final
+                    ctx.fillStyle = '#888';
+                    ctx.fillRect(lineX + 8, y + 235, 24, 20);
+                    
+                    // Brillo metálico
+                    ctx.fillStyle = 'rgba(180, 180, 180, 0.5)';
+                    ctx.fillRect(lineX + 12, y + 235, 8, 20);
+                }
+                
+                // Marco del molde
+                ctx.strokeStyle = '#1a1a1a';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(lineX, y + 5, 40, 250);
+                
+                // Rodillos de soporte
+                for (let r = 1; r < 10; r++) {
+                    ctx.fillStyle = '#555';
+                    ctx.beginPath();
+                    ctx.arc(lineX - 8, y + 30 + r * 25, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(lineX + 48, y + 30 + r * 25, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Número de línea
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(i + 1, lineX + 20, y + 275);
+            }
+
+            // Marco principal
+            ctx.strokeStyle = '#1a1a1a';
+            ctx.lineWidth = 6;
+            ctx.strokeRect(x, y, 360, 260);
+            
+            // Panel de control
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(x - 10, y + 80, 15, 100);
+            
+            // Indicadores de línea
+            for (let i = 0; i < 4; i++) {
+                const ledColor = active ? '#0f0' : '#333';
+                ctx.fillStyle = ledColor;
+                ctx.beginPath();
+                ctx.arc(x - 3, y + 90 + i * 22, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Etiqueta
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+            ctx.fillRect(x + 50, y + 285, 260, 45);
+            ctx.fillStyle = '#4a90e2';
+            ctx.font = 'bold 18px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('COLADA CONTINUA', x + 180, y + 305);
+            ctx.fillStyle = 'white';
+            ctx.font = '14px Arial';
+            ctx.fillText('4 Líneas - Palanquilla 130x130mm', x + 180, y + 323);
+        }
+
+        function drawBillet(x, y, width, height) {
+            // Palanquilla
+            ctx.fillStyle = '#999';
+            ctx.fillRect(x, y, width, height);
+            
+            // Sombra
+            ctx.fillStyle = '#666';
+            ctx.fillRect(x, y + height - 3, width, 3);
+            
+            // Brillo metálico
+            ctx.fillStyle = 'rgba(200, 200, 200, 0.5)';
+            ctx.fillRect(x + 2, y + 2, width - 4, 5);
+        }
+
+        function drawQualityControl(x, y, active) {
+            // Laboratorio
+            ctx.fillStyle = '#e7f5ff';
+            ctx.fillRect(x, y, 150, 100);
+            ctx.strokeStyle = '#1971c2';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x, y, 150, 100);
+
+            // Microscopio
+            ctx.fillStyle = '#333';
+            ctx.fillRect(x + 30, y + 40, 30, 40);
+            ctx.fillRect(x + 40, y + 30, 10, 15);
+
+            if (active) {
+                // Muestra
+                ctx.fillStyle = '#888';
+                ctx.fillRect(x + 35, y + 75, 20, 5);
+
+                // Pantalla
+                ctx.fillStyle = '#000';
+                ctx.fillRect(x + 80, y + 30, 50, 40);
+                ctx.fillStyle = '#0f0';
+                ctx.fillRect(x + 85, y + 35, 40, 30);
+                
+                // Gráfico
+                ctx.strokeStyle = '#0f0';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                for (let i = 0; i < 40; i += 2) {
+                    ctx.lineTo(x + 85 + i, y + 50 + Math.sin(i * 0.5) * 5);
+                }
+                ctx.stroke();
+            }
+
+            // Etiqueta
+            ctx.fillStyle = '#1971c2';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('CONTROL', x + 75, y + 95);
+            ctx.fillText('CALIDAD', x + 75, y + 110);
+        }
+
+        function drawWarehouse(x, y) {
+            // Almacén
+            ctx.fillStyle = '#51cf66';
+            ctx.fillRect(x, y, 200, 120);
+            ctx.strokeStyle = '#2b8a3e';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x, y, 200, 120);
+
+            // Palanquillas apiladas
+            for (let row = 0; row < 3; row++) {
+                for (let col = 0; col < 4; col++) {
+                    drawBillet(x + 15 + col * 45, y + 20 + row * 30, 35, 25);
+                }
+            }
+
+            // Puerta
+            ctx.fillStyle = '#2b8a3e';
+            ctx.fillRect(x + 170, y + 60, 30, 60);
+
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('ALMACÉN', x + 100, y + 110);
+        }
+
+        function drawScene() {
+            drawBackground();
+
+            const stage = getCurrentStage();
+            const progress = (currentTime - stage.start) / (stage.end - stage.start);
+
+            // ETAPA 1: Silos (más grandes)
+            if (currentTime >= 0) {
+                drawSilo(50, 80, hbiLevel);
+                drawSilo(200, 80, 85);
+                drawSilo(350, 80, 92);
+            }
+
+            // ETAPA 2: Cintas transportadoras
+            if (currentTime >= 15) {
+                drawConveyorBelt(180, 320, 400, currentTime >= 15 && currentTime < 25);
+                if (currentTime >= 15 && currentTime < 25) {
+                    hbiLevel = Math.max(20, 100 - (currentTime - 15) * 8);
+                }
+            }
+
+            // ETAPA 3: Horno EAF (más grande y centrado)
+            if (currentTime >= 25) {
+                if (currentTime >= 25 && currentTime < 50) {
+                    furnaceTemp = ((currentTime - 25) / 25) * 1650;
+                    moltenSteel = ((currentTime - 25) / 25) * 100;
+                } else if (currentTime >= 50) {
+                    furnaceTemp = Math.max(0, 1650 - (currentTime - 50) * 50);
+                }
+                drawFurnace(550, 100, furnaceTemp);
+            }
+
+            // ETAPA 4: Horno Cuchara
+            if (currentTime >= 50) {
+                const ladleFilled = currentTime >= 50 && currentTime < 65;
+                drawLadle(900, 200, ladleFilled);
+            }
+
+            // ETAPA 5: Colada Continua (más grande)
+            if (currentTime >= 65) {
+                const castingActive = currentTime >= 65 && currentTime < 90;
+                drawContinuousCasting(480, 80, castingActive);
+            }
+
+            // ETAPA 6: Palanquillas saliendo
+            if (currentTime >= 90) {
+                const numBillets = Math.min(10, Math.floor((currentTime - 90) / 1.5));
+                for (let i = 0; i < numBillets; i++) {
+                    drawBillet(480 + i * 70, 400, 50, 35);
+                }
+            }
+
+            // ETAPA 7: Control de Calidad
+            if (currentTime >= 100) {
+                drawQualityControl(1050, 450, currentTime >= 100 && currentTime < 110);
+            }
+
+            // ETAPA 8: Almacén
+            if (currentTime >= 110) {
+                drawWarehouse(1100, 450);
+            }
+
+            // Indicador de etapa en esquina superior (discreto)
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.fillRect(10, 10, 50, 30);
+            ctx.fillStyle = '#ff6b6b';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(stages.indexOf(stage) + 1 + '/8', 35, 33);
+        }
+
+        function animate(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const deltaTime = (timestamp - lastTimestamp) / 1000;
+            lastTimestamp = timestamp;
+
+            if (isPlaying) {
+                currentTime += deltaTime * animationSpeed;
+                
+                if (currentTime >= totalDuration) {
+                    currentTime = totalDuration;
+                    pause();
+                }
+
+                updateProgress();
+                updateStageInfo();
+            }
+
+            drawScene();
+            requestAnimationFrame(animate);
+        }
+
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            const btn = document.getElementById('playPauseBtn');
+            btn.textContent = isPlaying ? '⏸️' : '▶️';
+        }
+
+        function pause() {
+            isPlaying = false;
+            document.getElementById('playPauseBtn').textContent = '▶️';
+        }
+
+        function restart() {
+            currentTime = 0;
+            hbiLevel = 100;
+            moltenSteel = 0;
+            furnaceTemp = 0;
+            isPlaying = true;
+            document.getElementById('playPauseBtn').textContent = '⏸️';
+            updateProgress();
+            updateStageInfo();
+        }
+
+        function skipForward() {
+            const stage = getCurrentStage();
+            const nextStageIndex = stages.indexOf(stage) + 1;
+            if (nextStageIndex < stages.length) {
+                currentTime = stages[nextStageIndex].start;
+                updateProgress();
+                updateStageInfo();
+            }
+        }
+
+        function updateProgress() {
+            const percent = (currentTime / totalDuration) * 100;
+            document.getElementById('progress').style.width = percent + '%';
+            
+            const minutes = Math.floor(currentTime / 60);
+            const seconds = Math.floor(currentTime % 60);
+            document.getElementById('timeDisplay').textContent = 
+                `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function changeSpeed() {
+            animationSpeed = parseFloat(document.getElementById('speedSelect').value);
+        }
+
+        // Iniciar
+        setTimeout(() => {
+            document.getElementById('loading').style.display = 'none';
+            animate();
+        }, 2000);
+
+        // Auto-play al cargar
+        setTimeout(() => {
+            isPlaying = true;
+            document.getElementById('playPauseBtn').textContent = '⏸️';
+        }, 2500);
+    </script>
+</body>
+</html>
+

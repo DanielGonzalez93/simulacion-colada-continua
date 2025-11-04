@@ -1,0 +1,1739 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Render 3D - Planta Siderúrgica | Estilo CAD</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #1a1a1a;
+            overflow: hidden;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #00ff88;
+            font-family: 'Courier New', monospace;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        #info h2 {
+            color: #00ff88;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        #info p {
+            margin: 5px 0;
+            font-size: 0.95em;
+        }
+
+        .stat {
+            color: #00aaff;
+        }
+
+        #controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px 40px;
+            border-radius: 50px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            z-index: 100;
+            border: 2px solid #00ff88;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #00ff88 0%, #00aa66 100%);
+            color: #000;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            font-size: 1em;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.5);
+        }
+
+        .btn.active {
+            background: linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%);
+            color: white;
+        }
+
+        #viewSelector {
+            background: #222;
+            color: #00ff88;
+            border: 2px solid #00ff88;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            color: white;
+        }
+
+        #loading h1 {
+            font-size: 3em;
+            color: #00ff88;
+            margin-bottom: 30px;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+
+        .loader-bar {
+            width: 400px;
+            height: 10px;
+            background: #222;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #00ff88;
+        }
+
+        .loader-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #00aaff);
+            width: 0%;
+            animation: loadAnim 2s ease-out forwards;
+        }
+
+        @keyframes loadAnim {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+
+        #logo {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px 25px;
+            border-radius: 10px;
+            border: 2px solid #00ff88;
+            color: #00ff88;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 1.2em;
+            z-index: 100;
+        }
+
+        #stageDisplay {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px 60px;
+            border-radius: 15px;
+            border: 3px solid #00ff88;
+            text-align: center;
+            z-index: 99;
+            display: none;
+            backdrop-filter: blur(10px);
+        }
+
+        #stageDisplay h2 {
+            color: #00ff88;
+            font-size: 2em;
+            margin-bottom: 15px;
+        }
+
+        #stageDisplay p {
+            font-size: 1.2em;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <h1>🏭 RENDER 3D - PLANTA SIDERÚRGICA</h1>
+        <div class="loader-bar">
+            <div class="loader-fill"></div>
+        </div>
+        <p style="margin-top: 20px; font-size: 1.2em;">Generando modelos 3D...</p>
+    </div>
+
+    <div id="logo">STEEL TECH 3D</div>
+
+    <div id="info">
+        <h2>📊 INFORMACIÓN DEL PROCESO</h2>
+        <p>Etapa: <span class="stat" id="stageName">Inicializando...</span></p>
+        <p>Temperatura: <span class="stat" id="temperature">25°C</span></p>
+        <p>Producción: <span class="stat" id="production">0 ton/h</span></p>
+        <p>Energía: <span class="stat" id="energy">0 MW</span></p>
+        <p>────────────────────</p>
+        <p style="color: #888; font-size: 0.85em;">🖱️ Clic y arrastra: Rotar</p>
+        <p style="color: #888; font-size: 0.85em;">🔍 Scroll: Zoom</p>
+    </div>
+
+    <div id="stageDisplay">
+        <h2 id="stageTitle">Etapa 1</h2>
+        <p id="stageDescription">Descripción</p>
+    </div>
+
+    <div id="controls">
+        <button class="btn" onclick="previousStage()">⬅️ Anterior</button>
+        <button class="btn active" id="playBtn" onclick="toggleAnimation()">▶️ Play</button>
+        <button class="btn" onclick="nextStage()">Siguiente ➡️</button>
+        <select id="viewSelector" onchange="changeView()">
+            <option value="overview">Vista General</option>
+            <option value="furnace">Horno EAF</option>
+            <option value="casting">Colada Continua</option>
+            <option value="storage">Almacenamiento</option>
+            <option value="aerial">Vista Aérea</option>
+        </select>
+        <button class="btn" onclick="resetView()">🔄 Reset</button>
+    </div>
+
+    <div id="container"></div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // Variables globales
+        let scene, camera, renderer, controls;
+        let currentStage = 0;
+        let isAnimating = true;
+        let animationTime = 0;
+        let stageTimer = 0;
+        let autoProgress = true;
+        
+        // Objetos 3D
+        let silos = [];
+        let furnace, ladle, castingMachine, billets = [];
+        let particles = [];
+        let conveyorBelt, moltenSteel, steamParticles = [];
+        let billetQueue = [];
+        let craneHook;
+
+        const stages = [
+            { name: "Vista General - Proceso Completo", temp: 25, prod: 0, energy: 0, duration: 15 },
+            { name: "HBI → Transporte → Horno", temp: 800, prod: 50, energy: 5, duration: 12 },
+            { name: "Fusión: HBI → Acero Líquido", temp: 1650, prod: 100, energy: 80, duration: 15 },
+            { name: "Acero Líquido → Refinación", temp: 1680, prod: 95, energy: 15, duration: 12 },
+            { name: "Acero → Colada Continua", temp: 1540, prod: 98, energy: 25, duration: 15 },
+            { name: "Solidificación → Palanquilla", temp: 900, prod: 98, energy: 20, duration: 15 },
+            { name: "Palanquillas Finales", temp: 400, prod: 97, energy: 2, duration: 12 },
+            { name: "Producto Terminado", temp: 80, prod: 0, energy: 1, duration: 10 }
+        ];
+
+        function init() {
+            // Escena
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            scene.fog = new THREE.Fog(0x0a0a0a, 50, 200);
+
+            // Cámara
+            camera = new THREE.PerspectiveCamera(
+                60,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                1000
+            );
+            camera.position.set(40, 25, 50);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            // Controles
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 20;
+            controls.maxDistance = 150;
+            controls.maxPolarAngle = Math.PI / 2;
+
+            // Luces
+            setupLights();
+
+            // Crear entorno
+            createEnvironment();
+            createEquipment();
+
+            // Grid
+            const gridHelper = new THREE.GridHelper(100, 50, 0x00ff88, 0x333333);
+            scene.add(gridHelper);
+
+            // Event listeners
+            window.addEventListener('resize', onWindowResize);
+
+            // Ocultar loading
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+            }, 2000);
+
+            animate();
+        }
+
+        function setupLights() {
+            // Luz ambiental
+            const ambient = new THREE.AmbientLight(0x404040, 1);
+            scene.add(ambient);
+
+            // Luz direccional principal (sol)
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            dirLight.position.set(50, 50, 30);
+            dirLight.castShadow = true;
+            dirLight.shadow.camera.left = -50;
+            dirLight.shadow.camera.right = 50;
+            dirLight.shadow.camera.top = 50;
+            dirLight.shadow.camera.bottom = -50;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            // Luces de ambiente industrial
+            const spotLight1 = new THREE.SpotLight(0xffffff, 0.8);
+            spotLight1.position.set(-20, 30, 20);
+            spotLight1.castShadow = true;
+            scene.add(spotLight1);
+
+            const spotLight2 = new THREE.SpotLight(0xffffff, 0.8);
+            spotLight2.position.set(20, 30, -20);
+            spotLight2.castShadow = true;
+            scene.add(spotLight2);
+
+            // Luz del horno (cuando esté activo)
+            const furnaceLight = new THREE.PointLight(0xff4400, 0, 30);
+            furnaceLight.position.set(0, 10, 0);
+            furnaceLight.name = 'furnaceLight';
+            scene.add(furnaceLight);
+        }
+
+        function createEnvironment() {
+            // Suelo industrial
+            const floorGeometry = new THREE.PlaneGeometry(100, 100);
+            const floorMaterial = new THREE.MeshStandardMaterial({
+                color: 0x2a2a2a,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Líneas de división en el suelo
+            for (let i = -50; i <= 50; i += 10) {
+                const lineMat = new THREE.LineBasicMaterial({ color: 0x444444 });
+                const lineGeo = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(i, 0.01, -50),
+                    new THREE.Vector3(i, 0.01, 50)
+                ]);
+                scene.add(new THREE.Line(lineGeo, lineMat));
+                
+                const lineGeo2 = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(-50, 0.01, i),
+                    new THREE.Vector3(50, 0.01, i)
+                ]);
+                scene.add(new THREE.Line(lineGeo2, lineMat));
+            }
+
+            // Estructura de techo (vigas)
+            const beamMaterial = new THREE.MeshStandardMaterial({
+                color: 0x555555,
+                roughness: 0.7,
+                metalness: 0.6
+            });
+
+            for (let i = -40; i <= 40; i += 20) {
+                const beamGeometry = new THREE.BoxGeometry(1, 1, 80);
+                const beam = new THREE.Mesh(beamGeometry, beamMaterial);
+                beam.position.set(i, 25, 0);
+                beam.castShadow = true;
+                scene.add(beam);
+            }
+        }
+
+        function createEquipment() {
+            // SILOS DE ALMACENAMIENTO
+            createSilos();
+
+            // HORNO ELÉCTRICO DE ARCO (EAF)
+            createFurnace();
+
+            // HORNO CUCHARA
+            createLadle();
+
+            // MÁQUINA DE COLADA CONTINUA
+            createCastingMachine();
+
+            // SISTEMA DE TUBERÍAS
+            createPipelines();
+
+            // GRÚA
+            createCrane();
+        }
+
+        function createSilos() {
+            const siloMaterial = new THREE.MeshStandardMaterial({
+                color: 0x8b6914,
+                roughness: 0.6,
+                metalness: 0.4
+            });
+
+            for (let i = 0; i < 3; i++) {
+                const group = new THREE.Group();
+                
+                // Cuerpo cilíndrico
+                const bodyGeometry = new THREE.CylinderGeometry(3, 3, 12, 32);
+                const body = new THREE.Mesh(bodyGeometry, siloMaterial);
+                body.castShadow = true;
+                body.receiveShadow = true;
+                group.add(body);
+
+                // Tapa cónica
+                const topGeometry = new THREE.ConeGeometry(3.5, 3, 32);
+                const topMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x666666,
+                    roughness: 0.5,
+                    metalness: 0.5
+                });
+                const top = new THREE.Mesh(topGeometry, topMaterial);
+                top.position.y = 7.5;
+                group.add(top);
+
+                // Base
+                const baseGeometry = new THREE.CylinderGeometry(3.5, 3.5, 1, 32);
+                const base = new THREE.Mesh(baseGeometry, topMaterial);
+                base.position.y = -6.5;
+                group.add(base);
+
+                // Ventana transparente
+                const windowGeometry = new THREE.PlaneGeometry(2, 8);
+                const windowMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x88aaff,
+                    transparent: true,
+                    opacity: 0.3,
+                    side: THREE.DoubleSide
+                });
+                const window1 = new THREE.Mesh(windowGeometry, windowMaterial);
+                window1.position.set(0, 0, 3.01);
+                group.add(window1);
+
+                // Escalera
+                const ladderMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xffaa00,
+                    roughness: 0.7
+                });
+                const ladderGeometry = new THREE.BoxGeometry(0.5, 12, 0.1);
+                const ladder = new THREE.Mesh(ladderGeometry, ladderMaterial);
+                ladder.position.set(-3.2, 0, 0);
+                group.add(ladder);
+
+                group.position.set(-30 + i * 8, 6, -30);
+                silos.push(group);
+                scene.add(group);
+            }
+        }
+
+        function createFurnace() {
+            furnace = new THREE.Group();
+
+            // Base del horno
+            const baseGeometry = new THREE.CylinderGeometry(8, 9, 3, 32);
+            const baseMaterial = new THREE.MeshStandardMaterial({
+                color: 0x333333,
+                roughness: 0.8,
+                metalness: 0.3
+            });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            base.position.y = 1.5;
+            base.castShadow = true;
+            base.receiveShadow = true;
+            furnace.add(base);
+
+            // Cuerpo principal (refractario)
+            const bodyGeometry = new THREE.CylinderGeometry(7, 8, 10, 32);
+            const bodyMaterial = new THREE.MeshStandardMaterial({
+                color: 0x4a4a4a,
+                roughness: 0.9,
+                metalness: 0.2
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 8;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            furnace.add(body);
+
+            // Revestimiento refractario interior (visible)
+            const liningGeometry = new THREE.CylinderGeometry(6.5, 7.5, 9.5, 32);
+            const liningMaterial = new THREE.MeshStandardMaterial({
+                color: 0x8b4513,
+                roughness: 1,
+                emissive: 0x000000
+            });
+            const lining = new THREE.Mesh(liningGeometry, liningMaterial);
+            lining.position.y = 8;
+            furnace.add(lining);
+
+            // Electrodos (3)
+            const electrodeMaterial = new THREE.MeshStandardMaterial({
+                color: 0x222222,
+                roughness: 0.7,
+                metalness: 0.8
+            });
+
+            for (let i = 0; i < 3; i++) {
+                const angle = (i * 120 * Math.PI) / 180;
+                const x = Math.cos(angle) * 4;
+                const z = Math.sin(angle) * 4;
+
+                // Brazo del electrodo
+                const armGeometry = new THREE.BoxGeometry(1, 8, 1);
+                const arm = new THREE.Mesh(armGeometry, electrodeMaterial);
+                arm.position.set(x, 17, z);
+                arm.castShadow = true;
+                furnace.add(arm);
+
+                // Electrodo de grafito
+                const electrodeGeometry = new THREE.CylinderGeometry(0.4, 0.4, 12, 16);
+                const electrode = new THREE.Mesh(electrodeGeometry, electrodeMaterial);
+                electrode.position.set(x, 7, z);
+                electrode.castShadow = true;
+                furnace.add(electrode);
+
+                // Cable de alimentación
+                const cableGeometry = new THREE.CylinderGeometry(0.2, 0.2, 6, 8);
+                const cableMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x000000,
+                    roughness: 0.5
+                });
+                const cable = new THREE.Mesh(cableGeometry, cableMaterial);
+                cable.position.set(x, 23, z);
+                furnace.add(cable);
+            }
+
+            // Techo removible
+            const roofGeometry = new THREE.CylinderGeometry(7.5, 7, 1.5, 32);
+            const roofMaterial = new THREE.MeshStandardMaterial({
+                color: 0x555555,
+                roughness: 0.6,
+                metalness: 0.5
+            });
+            const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+            roof.position.y = 13.5;
+            roof.castShadow = true;
+            furnace.add(roof);
+
+            // Puerta de descarga (EBT)
+            const doorGeometry = new THREE.BoxGeometry(2, 3, 0.5);
+            const doorMaterial = new THREE.MeshStandardMaterial({
+                color: 0xff3333,
+                roughness: 0.4,
+                metalness: 0.6,
+                emissive: 0x330000,
+                emissiveIntensity: 0.2
+            });
+            const door = new THREE.Mesh(doorGeometry, doorMaterial);
+            door.position.set(0, 4, 8);
+            door.castShadow = true;
+            furnace.add(door);
+
+            // Panel de control
+            const panelGeometry = new THREE.BoxGeometry(2, 3, 0.3);
+            const panelMaterial = new THREE.MeshStandardMaterial({
+                color: 0x1a1a1a,
+                roughness: 0.3,
+                metalness: 0.7
+            });
+            const panel = new THREE.Mesh(panelGeometry, panelMaterial);
+            panel.position.set(-9, 5, 0);
+            panel.rotation.y = Math.PI / 2;
+            furnace.add(panel);
+
+            // Pantalla del panel
+            const screenGeometry = new THREE.PlaneGeometry(1.5, 2);
+            const screenMaterial = new THREE.MeshStandardMaterial({
+                color: 0x000000,
+                emissive: 0x00ff00,
+                emissiveIntensity: 0.5
+            });
+            const screen = new THREE.Mesh(screenGeometry, screenMaterial);
+            screen.position.set(-9.16, 5, 0);
+            screen.rotation.y = Math.PI / 2;
+            furnace.add(screen);
+
+            // Refuerzos estructurales
+            for (let i = 0; i < 8; i++) {
+                const angle = (i * 45 * Math.PI) / 180;
+                const reinforcementGeometry = new THREE.BoxGeometry(0.3, 10, 0.3);
+                const reinforcement = new THREE.Mesh(reinforcementGeometry, baseMaterial);
+                reinforcement.position.set(
+                    Math.cos(angle) * 7.5,
+                    8,
+                    Math.sin(angle) * 7.5
+                );
+                furnace.add(reinforcement);
+            }
+
+            furnace.position.set(0, 0, 0);
+            furnace.name = 'furnace';
+            scene.add(furnace);
+        }
+
+        function createLadle() {
+            ladle = new THREE.Group();
+
+            // Cuerpo de la cuchara (forma troncocónica)
+            const ladleGeometry = new THREE.CylinderGeometry(2, 2.8, 5, 32);
+            const ladleMaterial = new THREE.MeshStandardMaterial({
+                color: 0x555555,
+                roughness: 0.7,
+                metalness: 0.5
+            });
+            const body = new THREE.Mesh(ladleGeometry, ladleMaterial);
+            body.castShadow = true;
+            body.receiveShadow = true;
+            ladle.add(body);
+
+            // Revestimiento refractario interior
+            const liningGeometry = new THREE.CylinderGeometry(1.8, 2.6, 4.8, 32);
+            const liningMaterial = new THREE.MeshStandardMaterial({
+                color: 0xf4e4c4,
+                roughness: 1
+            });
+            const lining = new THREE.Mesh(liningGeometry, liningMaterial);
+            ladle.add(lining);
+
+            // Aros de refuerzo
+            for (let i = 0; i < 3; i++) {
+                const ringGeometry = new THREE.TorusGeometry(2.4, 0.15, 16, 32);
+                const ring = new THREE.Mesh(ringGeometry, ladleMaterial);
+                ring.position.y = -1.5 + i * 1.5;
+                ring.rotation.x = Math.PI / 2;
+                ladle.add(ring);
+            }
+
+            // Ganchos de sujeción
+            const hookMaterial = new THREE.MeshStandardMaterial({
+                color: 0x888888,
+                roughness: 0.5,
+                metalness: 0.7
+            });
+            
+            for (let i = 0; i < 2; i++) {
+                const hookGeometry = new THREE.TorusGeometry(0.5, 0.2, 16, 32, Math.PI);
+                const hook = new THREE.Mesh(hookGeometry, hookMaterial);
+                hook.position.set(i === 0 ? -2.5 : 2.5, 3, 0);
+                hook.rotation.z = Math.PI / 2;
+                ladle.add(hook);
+            }
+
+            ladle.position.set(15, 2.5, 5);
+            ladle.name = 'ladle';
+            scene.add(ladle);
+        }
+
+        function createCastingMachine() {
+            castingMachine = new THREE.Group();
+
+            // Estructura principal
+            const frameGeometry = new THREE.BoxGeometry(20, 20, 8);
+            const frameMaterial = new THREE.MeshStandardMaterial({
+                color: 0x3a3a3a,
+                roughness: 0.8,
+                metalness: 0.3
+            });
+            const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+            frame.position.y = 10;
+            frame.castShadow = true;
+            frame.receiveShadow = true;
+            castingMachine.add(frame);
+
+            // Distribuidor (Tundish)
+            const tundishGeometry = new THREE.BoxGeometry(12, 2, 4);
+            const tundishMaterial = new THREE.MeshStandardMaterial({
+                color: 0x666666,
+                roughness: 0.6,
+                metalness: 0.5
+            });
+            const tundish = new THREE.Mesh(tundishGeometry, tundishMaterial);
+            tundish.position.set(0, 21, 0);
+            tundish.castShadow = true;
+            castingMachine.add(tundish);
+
+            // Interior refractario del tundish
+            const tundishLiningGeometry = new THREE.BoxGeometry(11.5, 1.5, 3.5);
+            const tundishLiningMaterial = new THREE.MeshStandardMaterial({
+                color: 0xf4e4c4,
+                roughness: 1
+            });
+            const tundishLining = new THREE.Mesh(tundishLiningGeometry, tundishLiningMaterial);
+            tundishLining.position.set(0, 21, 0);
+            castingMachine.add(tundishLining);
+
+            // 4 líneas de colada
+            const moldMaterial = new THREE.MeshStandardMaterial({
+                color: 0xb87333, // Color cobre
+                roughness: 0.3,
+                metalness: 0.9
+            });
+
+            for (let i = 0; i < 4; i++) {
+                const lineGroup = new THREE.Group();
+                
+                // Molde de cobre
+                const moldGeometry = new THREE.BoxGeometry(1, 3, 1);
+                const mold = new THREE.Mesh(moldGeometry, moldMaterial);
+                mold.position.y = 18.5;
+                mold.castShadow = true;
+                lineGroup.add(mold);
+
+                // Guías de soporte
+                const guideGeometry = new THREE.BoxGeometry(1.5, 15, 1.5);
+                const guideMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x444444,
+                    roughness: 0.7,
+                    metalness: 0.4
+                });
+                const guide = new THREE.Mesh(guideGeometry, guideMaterial);
+                guide.position.y = 10;
+                lineGroup.add(guide);
+
+                // Rodillos de soporte
+                for (let j = 0; j < 8; j++) {
+                    const rollerGeometry = new THREE.CylinderGeometry(0.3, 0.3, 2, 16);
+                    const rollerMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x888888,
+                        roughness: 0.4,
+                        metalness: 0.7
+                    });
+                    const roller = new THREE.Mesh(rollerGeometry, rollerMaterial);
+                    roller.position.set(1, 16 - j * 2, 0);
+                    roller.rotation.z = Math.PI / 2;
+                    lineGroup.add(roller);
+
+                    const roller2 = roller.clone();
+                    roller2.position.x = -1;
+                    lineGroup.add(roller2);
+                }
+
+                // Sprays de agua (boquillas)
+                for (let j = 0; j < 5; j++) {
+                    const nozzleGeometry = new THREE.ConeGeometry(0.1, 0.3, 8);
+                    const nozzleMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x4a90e2
+                    });
+                    const nozzle1 = new THREE.Mesh(nozzleGeometry, nozzleMaterial);
+                    nozzle1.position.set(-1.2, 14 - j * 2, 0);
+                    nozzle1.rotation.z = Math.PI / 2;
+                    lineGroup.add(nozzle1);
+
+                    const nozzle2 = nozzle1.clone();
+                    nozzle2.position.x = 1.2;
+                    nozzle2.rotation.z = -Math.PI / 2;
+                    lineGroup.add(nozzle2);
+                }
+
+                lineGroup.position.x = -7.5 + i * 5;
+                castingMachine.add(lineGroup);
+            }
+
+            // Plataformas de trabajo
+            const platformGeometry = new THREE.BoxGeometry(22, 0.3, 10);
+            const platformMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffaa00,
+                roughness: 0.8
+            });
+            const platform1 = new THREE.Mesh(platformGeometry, platformMaterial);
+            platform1.position.set(0, 15, 6);
+            platform1.castShadow = true;
+            platform1.receiveShadow = true;
+            castingMachine.add(platform1);
+
+            const platform2 = platform1.clone();
+            platform2.position.y = 8;
+            castingMachine.add(platform2);
+
+            // Barandillas
+            const railingMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffaa00,
+                roughness: 0.7
+            });
+            
+            for (let i = 0; i < 2; i++) {
+                const railingGeometry = new THREE.BoxGeometry(22, 1.2, 0.1);
+                const railing = new THREE.Mesh(railingGeometry, railingMaterial);
+                railing.position.set(0, 15 + 1.2, i === 0 ? 11 : 1);
+                castingMachine.add(railing);
+            }
+
+            castingMachine.position.set(0, 0, 25);
+            castingMachine.name = 'castingMachine';
+            scene.add(castingMachine);
+        }
+
+        function createPipelines() {
+            const pipeMaterial = new THREE.MeshStandardMaterial({
+                color: 0x4a90e2,
+                roughness: 0.4,
+                metalness: 0.8
+            });
+
+            // Tubería principal de agua
+            const pipeGeometry = new THREE.CylinderGeometry(0.4, 0.4, 30, 16);
+            const pipe1 = new THREE.Mesh(pipeGeometry, pipeMaterial);
+            pipe1.position.set(-20, 3, 10);
+            pipe1.rotation.z = Math.PI / 2;
+            pipe1.castShadow = true;
+            scene.add(pipe1);
+
+            // Tubería vertical
+            const pipe2 = new THREE.Mesh(pipeGeometry, pipeMaterial);
+            pipe2.position.set(10, 15, 10);
+            pipe2.castShadow = true;
+            scene.add(pipe2);
+
+            // Conexiones
+            for (let i = 0; i < 5; i++) {
+                const elbowGeometry = new THREE.TorusGeometry(0.4, 0.2, 16, 32, Math.PI / 2);
+                const elbow = new THREE.Mesh(elbowGeometry, pipeMaterial);
+                elbow.position.set(-15 + i * 6, 3, 10);
+                elbow.rotation.y = Math.PI / 2;
+                scene.add(elbow);
+            }
+
+            // Válvulas
+            const valveMaterial = new THREE.MeshStandardMaterial({
+                color: 0xff0000,
+                roughness: 0.5,
+                metalness: 0.6
+            });
+
+            for (let i = 0; i < 3; i++) {
+                const valveGeometry = new THREE.CylinderGeometry(0.6, 0.6, 1, 16);
+                const valve = new THREE.Mesh(valveGeometry, valveMaterial);
+                valve.position.set(-12 + i * 8, 3, 10);
+                valve.rotation.z = Math.PI / 2;
+                valve.castShadow = true;
+                scene.add(valve);
+
+                // Volante de válvula
+                const wheelGeometry = new THREE.TorusGeometry(0.8, 0.1, 16, 32);
+                const wheel = new THREE.Mesh(wheelGeometry, valveMaterial);
+                wheel.position.set(-12 + i * 8, 4, 10);
+                wheel.rotation.x = Math.PI / 2;
+                scene.add(wheel);
+            }
+        }
+
+        function createCrane() {
+            const crane = new THREE.Group();
+
+            // Vigas principales
+            const beamGeometry = new THREE.BoxGeometry(1, 1, 60);
+            const beamMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffaa00,
+                roughness: 0.7,
+                metalness: 0.5
+            });
+
+            for (let i = 0; i < 2; i++) {
+                const beam = new THREE.Mesh(beamGeometry, beamMaterial);
+                beam.position.set(i === 0 ? -10 : 10, 20, 0);
+                beam.castShadow = true;
+                crane.add(beam);
+            }
+
+            // Viga transversal (carro)
+            const crossBeamGeometry = new THREE.BoxGeometry(21, 1, 1);
+            const crossBeam = new THREE.Mesh(crossBeamGeometry, beamMaterial);
+            crossBeam.position.set(0, 20, 0);
+            crossBeam.castShadow = true;
+            crane.add(crossBeam);
+
+            // Gancho (grupo movible)
+            craneHook = new THREE.Group();
+            
+            const hookGeometry = new THREE.CylinderGeometry(0.3, 0.3, 8, 16);
+            const hookMaterial = new THREE.MeshStandardMaterial({
+                color: 0x333333,
+                roughness: 0.5,
+                metalness: 0.8
+            });
+            const hook = new THREE.Mesh(hookGeometry, hookMaterial);
+            hook.position.set(0, 0, 0);
+            hook.castShadow = true;
+            craneHook.add(hook);
+
+            // Gancho inferior
+            const hookEndGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+            const hookEnd = new THREE.Mesh(hookEndGeometry, hookMaterial);
+            hookEnd.position.set(0, -4, 0);
+            craneHook.add(hookEnd);
+
+            // Cables
+            const cableGeometry = new THREE.CylinderGeometry(0.05, 0.05, 4, 8);
+            const cableMaterial = new THREE.MeshStandardMaterial({
+                color: 0x222222,
+                roughness: 0.6
+            });
+            const cable = new THREE.Mesh(cableGeometry, cableMaterial);
+            cable.position.set(0, 2, 0);
+            craneHook.add(cable);
+            
+            craneHook.position.set(0, 16, 0);
+            crane.add(craneHook);
+
+            crane.name = 'crane';
+            scene.add(crane);
+        }
+
+        function updateStageInfo() {
+            const stage = stages[currentStage];
+            document.getElementById('stageName').textContent = stage.name;
+            document.getElementById('temperature').textContent = stage.temp + '°C';
+            document.getElementById('production').textContent = stage.prod + ' ton/h';
+            document.getElementById('energy').textContent = stage.energy + ' MW';
+
+            // Actualizar luz del horno
+            const furnaceLight = scene.getObjectByName('furnaceLight');
+            if (currentStage >= 2 && currentStage <= 4) {
+                const intensity = stage.temp / 200;
+                furnaceLight.intensity = intensity;
+                furnaceLight.color.setHex(0xff4400);
+            } else {
+                furnaceLight.intensity = 0;
+            }
+
+            // Mostrar información de etapa
+            showStageDisplay();
+        }
+
+        function showStageDisplay() {
+            const display = document.getElementById('stageDisplay');
+            const stage = stages[currentStage];
+            document.getElementById('stageTitle').textContent = `Etapa ${currentStage + 1}: ${stage.name}`;
+            document.getElementById('stageDescription').textContent = 
+                `Temperatura: ${stage.temp}°C | Producción: ${stage.prod} ton/h | Energía: ${stage.energy} MW`;
+            
+            display.style.display = 'block';
+            setTimeout(() => {
+                display.style.display = 'none';
+            }, 3000);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isAnimating) {
+                animationTime += 0.016; // ~60 FPS
+                stageTimer += 0.016;
+                
+                // Progresión automática según duración de etapa
+                const currentStageDuration = stages[currentStage].duration || 10;
+                if (autoProgress && stageTimer > currentStageDuration) {
+                    nextStage();
+                    stageTimer = 0;
+                }
+                
+                // Animaciones específicas por etapa
+                animateCurrentStage();
+                
+                // Actualizar partículas existentes
+                updateParticles();
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function animateCurrentStage() {
+            switch(currentStage) {
+                case 0: // Almacenamiento HBI
+                    animateStage0_Storage();
+                    break;
+                case 1: // Transporte
+                    animateStage1_Transport();
+                    break;
+                case 2: // Fusión EAF
+                    animateStage2_Melting();
+                    break;
+                case 3: // Refinación
+                    animateStage3_Refining();
+                    break;
+                case 4: // Colada Continua
+                    animateStage4_Casting();
+                    break;
+                case 5: // Solidificación
+                    animateStage5_Solidification();
+                    break;
+                case 6: // Control Calidad
+                    animateStage6_QualityControl();
+                    break;
+                case 7: // Almacenamiento Final
+                    animateStage7_FinalStorage();
+                    break;
+            }
+        }
+
+        // ETAPA 0: Vista General
+        function animateStage0_Storage() {
+            // Mostrar todo el proceso de forma general
+            // Silos activos
+            silos.forEach((silo, index) => {
+                const scale = 1 + Math.sin(animationTime + index) * 0.02;
+                silo.scale.set(1, scale, 1);
+            });
+
+            // Material cayendo constantemente
+            if (Math.random() > 0.8) {
+                createFallingMaterial(-25, 8, -25);
+            }
+
+            // Horno brillando suavemente
+            const furnaceLight = scene.getObjectByName('furnaceLight');
+            if (furnaceLight) {
+                furnaceLight.intensity = 5 + Math.sin(animationTime) * 2;
+                furnaceLight.position.set(0, 10, 0);
+            }
+
+            // Crear algunas palanquillas de muestra
+            if (Math.random() > 0.98 && billetQueue.length < 3) {
+                createBillet();
+            }
+        }
+
+        // ETAPA 1: Transporte
+        function animateStage1_Transport() {
+            // Animar cinta transportadora
+            if (!conveyorBelt) {
+                createConveyorBelt();
+            }
+            
+            // Material moviéndose en la cinta
+            const beltSpeed = 0.1;
+            if (conveyorBelt) {
+                conveyorBelt.rotation.x += beltSpeed;
+            }
+
+            // Crear partículas de material cayendo de silos
+            if (Math.random() > 0.9) {
+                createFallingMaterial(-25, 8, -25);
+            }
+
+            // Disminuir nivel visual de silos
+            silos.forEach((silo, index) => {
+                const fillLevel = 1 - (stageTimer * 0.05);
+                const child = silo.children.find(c => c.geometry?.type === 'CylinderGeometry');
+                if (child && fillLevel > 0) {
+                    child.scale.y = Math.max(0.3, fillLevel);
+                }
+            });
+        }
+
+        // ETAPA 2: Fusión en EAF - MEJORADO CON ACERO LÍQUIDO VISIBLE
+        function animateStage2_Melting() {
+            const furnaceLight = scene.getObjectByName('furnaceLight');
+            
+            // Luz MUY INTENSA del horno
+            if (furnaceLight) {
+                const intensity = 25 + Math.sin(animationTime * 3) * 5;
+                furnaceLight.intensity = intensity;
+                furnaceLight.position.set(0, 8, 0);
+                furnaceLight.color.setHex(0xff3300);
+            }
+
+            // Crear ACERO LÍQUIDO visible dentro del horno
+            if (!moltenSteel) {
+                const steelGeometry = new THREE.SphereGeometry(4, 32, 32);
+                const steelMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xffaa00,
+                    emissive: 0xff6600,
+                    emissiveIntensity: 1.5,
+                    roughness: 0.1,
+                    metalness: 1
+                });
+                moltenSteel = new THREE.Mesh(steelGeometry, steelMaterial);
+                moltenSteel.position.set(0, 2, 0);
+                scene.add(moltenSteel);
+            }
+            
+            // Animar acero líquido
+            if (moltenSteel) {
+                moltenSteel.position.y = 2 + Math.sin(animationTime * 2) * 0.3;
+                moltenSteel.material.emissiveIntensity = 1.2 + Math.sin(animationTime * 5) * 0.3;
+                moltenSteel.scale.set(
+                    1 + Math.sin(animationTime * 3) * 0.05,
+                    1 + Math.cos(animationTime * 2) * 0.05,
+                    1 + Math.sin(animationTime * 4) * 0.05
+                );
+            }
+
+            // Cambiar emisividad del refractario
+            if (furnace) {
+                const lining = furnace.children.find(c => c.material?.color?.getHex() === 0x8b4513);
+                if (lining && lining.material) {
+                    lining.material.emissive = new THREE.Color(0xff4400);
+                    lining.material.emissiveIntensity = 0.6 + Math.sin(animationTime * 3) * 0.3;
+                }
+            }
+
+            // MUCHOS arcos eléctricos
+            if (Math.random() > 0.5) {
+                createElectricArc();
+            }
+
+            // Humo CONSTANTE del horno
+            if (Math.random() > 0.4) {
+                createSmokeParticle(0, 14, 0);
+            }
+
+            // MUCHAS chispas volando
+            for (let i = 0; i < 5; i++) {
+                if (Math.random() > 0.6) {
+                    createSparkParticle(
+                        Math.random() * 6 - 3,
+                        6 + Math.random() * 6,
+                        Math.random() * 6 - 3
+                    );
+                }
+            }
+
+            // Partículas de acero fundido salpicando
+            if (Math.random() > 0.85) {
+                createMoltenSteelSplash(
+                    Math.random() * 4 - 2,
+                    4,
+                    Math.random() * 4 - 2
+                );
+            }
+        }
+
+        // ETAPA 3: Refinación
+        function animateStage3_Refining() {
+            // Animar cuchara
+            if (ladle) {
+                ladle.position.y = 2.5 + Math.sin(animationTime) * 0.3;
+                ladle.rotation.y += 0.01;
+
+                // Agregar acero líquido brillante en la cuchara
+                if (!moltenSteel) {
+                    createMoltenSteelInLadle();
+                }
+                
+                if (moltenSteel) {
+                    moltenSteel.material.emissiveIntensity = 0.8 + Math.sin(animationTime * 5) * 0.2;
+                }
+            }
+
+            // Burbujas de argón
+            if (Math.random() > 0.85) {
+                createBubbleParticle(15, 3, 5);
+            }
+
+            // Luz de la cuchara
+            const furnaceLight = scene.getObjectByName('furnaceLight');
+            if (furnaceLight) {
+                furnaceLight.position.set(15, 8, 5);
+                furnaceLight.intensity = 8 + Math.sin(animationTime * 2) * 2;
+            }
+        }
+
+        // ETAPA 4: Colada Continua - MEJORADO CON FLUJO VISIBLE
+        function animateStage4_Casting() {
+            if (!castingMachine) return;
+
+            // FLUJO CONTINUO Y VISIBLE de acero desde tundish (4 líneas)
+            for (let i = 0; i < 4; i++) {
+                if (Math.random() > 0.3) {
+                    const x = -7.5 + i * 5;
+                    createMoltenFlowParticle(x, 20, 25);
+                }
+            }
+
+            // VAPOR INTENSO de agua de los sprays (MUCHO más visible)
+            for (let i = 0; i < 4; i++) {
+                if (Math.random() > 0.4) {
+                    const x = -7.5 + i * 5;
+                    // Múltiples puntos de spray por línea
+                    for (let j = 0; j < 3; j++) {
+                        createSteamParticle(x, 15 - j * 2, 25);
+                        createSteamParticle(x, 15 - j * 2, 25 + 0.5);
+                    }
+                }
+            }
+
+            // Luz naranja BRILLANTE del tundish
+            const furnaceLight = scene.getObjectByName('furnaceLight');
+            if (furnaceLight) {
+                furnaceLight.position.set(0, 22, 25);
+                furnaceLight.intensity = 20 + Math.sin(animationTime * 2) * 3;
+                furnaceLight.color.setHex(0xff6600);
+            }
+
+            // Animar moldes (vibración más visible)
+            castingMachine.children.forEach((child, index) => {
+                if (child.type === 'Group') {
+                    child.position.x = -7.5 + index * 5 + Math.sin(animationTime * 30) * 0.05;
+                }
+            });
+
+            // Agua salpicando (efecto de enfriamiento)
+            if (Math.random() > 0.7) {
+                for (let i = 0; i < 4; i++) {
+                    createWaterSplash(-7.5 + i * 5, 10, 25);
+                }
+            }
+        }
+
+        // ETAPA 5: Solidificación - MEJORADO CON MUCHAS PALANQUILLAS
+        function animateStage5_Solidification() {
+            // Crear MUCHAS palanquillas saliendo constantemente
+            if (Math.random() > 0.85 && billetQueue.length < 20) {
+                createBillet();
+            }
+
+            // Mover palanquillas existentes con animación de enfriamiento
+            billetQueue.forEach((billet, index) => {
+                billet.position.z += 0.03; // Más rápido
+                
+                // Cambiar color de ROJO BRILLANTE a GRIS conforme se enfrían
+                const distance = billet.position.z - 25;
+                const coolFactor = Math.min(1, distance / 15);
+                const hotColor = new THREE.Color(0xff3300);
+                const warmColor = new THREE.Color(0xff6600);
+                const coldColor = new THREE.Color(0x888888);
+                
+                if (coolFactor < 0.5) {
+                    billet.material.color.lerpColors(hotColor, warmColor, coolFactor * 2);
+                    billet.material.emissive.setHex(0xff3300);
+                    billet.material.emissiveIntensity = 0.8 - coolFactor;
+                } else {
+                    billet.material.color.lerpColors(warmColor, coldColor, (coolFactor - 0.5) * 2);
+                    billet.material.emissive.setHex(0x663300);
+                    billet.material.emissiveIntensity = Math.max(0, 0.4 - coolFactor * 0.4);
+                }
+                
+                // Eliminar si está muy lejos
+                if (billet.position.z > 50) {
+                    scene.remove(billet);
+                    billetQueue.splice(index, 1);
+                }
+            });
+
+            // VAPOR MASIVO (mucho más visible)
+            if (Math.random() > 0.5) {
+                for (let i = 0; i < 3; i++) {
+                    createSteamParticle(
+                        Math.random() * 15 - 7.5,
+                        4 + Math.random() * 3,
+                        28 + Math.random() * 10
+                    );
+                }
+            }
+
+            // Luz de las palanquillas calientes
+            const furnaceLight = scene.getObjectByName('furnaceLight');
+            if (furnaceLight && billetQueue.length > 0) {
+                furnaceLight.position.set(0, 5, 35);
+                furnaceLight.intensity = 10;
+                furnaceLight.color.setHex(0xff6600);
+            }
+        }
+
+        // ETAPA 6: Control de Calidad
+        function animateStage6_QualityControl() {
+            // Palanquillas pasando por inspección
+            billetQueue.forEach(billet => {
+                billet.position.z += 0.015;
+                
+                // Efecto de escaneo láser
+                if (billet.position.z > 35 && billet.position.z < 40) {
+                    billet.material.emissive.setHex(0x00ff00);
+                    billet.material.emissiveIntensity = 0.3 + Math.sin(animationTime * 10) * 0.2;
+                } else {
+                    billet.material.emissive.setHex(0x000000);
+                    billet.material.emissiveIntensity = 0;
+                }
+            });
+
+            // Rayo láser de inspección
+            if (Math.random() > 0.9) {
+                createLaserScan();
+            }
+        }
+
+        // ETAPA 7: Almacenamiento Final
+        function animateStage7_FinalStorage() {
+            // Mover grúa
+            if (craneHook) {
+                craneHook.position.x = Math.sin(animationTime * 0.5) * 8;
+                craneHook.position.y = 16 + Math.sin(animationTime * 0.8) * 3;
+            }
+
+            // Apilar palanquillas
+            billetQueue.forEach((billet, index) => {
+                if (billet.position.z > 45) {
+                    const targetX = -15 + (index % 5) * 3;
+                    const targetY = 0.5 + Math.floor(index / 5) * 1;
+                    const targetZ = 40;
+                    
+                    billet.position.x += (targetX - billet.position.x) * 0.05;
+                    billet.position.y += (targetY - billet.position.y) * 0.05;
+                    billet.position.z += (targetZ - billet.position.z) * 0.05;
+                }
+            });
+        }
+
+        // Funciones para crear efectos visuales
+
+        function createConveyorBelt() {
+            const beltGeometry = new THREE.CylinderGeometry(0.5, 0.5, 30, 32);
+            const beltMaterial = new THREE.MeshStandardMaterial({
+                color: 0x333333,
+                roughness: 0.9
+            });
+            conveyorBelt = new THREE.Mesh(beltGeometry, beltMaterial);
+            conveyorBelt.position.set(-10, 1.5, -10);
+            conveyorBelt.rotation.z = Math.PI / 2;
+            scene.add(conveyorBelt);
+        }
+
+        function createMoltenSteelInLadle() {
+            const steelGeometry = new THREE.CylinderGeometry(1.6, 2.4, 1, 32);
+            const steelMaterial = new THREE.MeshStandardMaterial({
+                color: 0xff6600,
+                emissive: 0xff4400,
+                emissiveIntensity: 0.8,
+                roughness: 0.3,
+                metalness: 0.8
+            });
+            moltenSteel = new THREE.Mesh(steelGeometry, steelMaterial);
+            moltenSteel.position.set(15, 3, 5);
+            scene.add(moltenSteel);
+        }
+
+        function createBillet() {
+            // Palanquillas MÁS GRANDES y visibles (130x130mm reales)
+            const billetGeometry = new THREE.BoxGeometry(1.3, 1.3, 8);
+            const billetMaterial = new THREE.MeshStandardMaterial({
+                color: 0xff3300,
+                emissive: 0xff3300,
+                emissiveIntensity: 0.9,
+                roughness: 0.4,
+                metalness: 0.9
+            });
+            const billet = new THREE.Mesh(billetGeometry, billetMaterial);
+            
+            // Distribuir en las 4 líneas de colada
+            const line = Math.floor(Math.random() * 4);
+            const x = -7.5 + line * 5;
+            
+            billet.position.set(x, 3, 25);
+            billet.castShadow = true;
+            billet.receiveShadow = true;
+            scene.add(billet);
+            billetQueue.push(billet);
+        }
+
+        function createDustParticle(x, y, z) {
+            const geometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0xcccccc,
+                transparent: true,
+                opacity: 0.5
+            });
+            const particle = new THREE.Mesh(geometry, material);
+            particle.position.set(x, y, z);
+            particle.velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.1,
+                -0.05,
+                (Math.random() - 0.5) * 0.1
+            );
+            scene.add(particle);
+            particles.push({ mesh: particle, life: 100 });
+        }
+
+        function createFallingMaterial(x, y, z) {
+            const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+            const material = new THREE.MeshStandardMaterial({
+                color: 0xd4a574,
+                roughness: 0.9
+            });
+            const particle = new THREE.Mesh(geometry, material);
+            particle.position.set(x + Math.random() * 2, y, z);
+            particle.velocity = new THREE.Vector3(0, -0.2, 0);
+            particle.rotation.set(
+                Math.random() * Math.PI,
+                Math.random() * Math.PI,
+                Math.random() * Math.PI
+            );
+            scene.add(particle);
+            particles.push({ mesh: particle, life: 50 });
+        }
+
+        function createElectricArc() {
+            const points = [];
+            const segments = 10;
+            for (let i = 0; i <= segments; i++) {
+                points.push(new THREE.Vector3(
+                    Math.sin(i) * 2,
+                    13 - i * 0.8,
+                    Math.cos(i) * 2
+                ));
+            }
+            
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const material = new THREE.LineBasicMaterial({
+                color: 0xffffff,
+                linewidth: 3
+            });
+            const arc = new THREE.Line(geometry, material);
+            scene.add(arc);
+            
+            setTimeout(() => scene.remove(arc), 100);
+        }
+
+        function createSmokeParticle(x, y, z) {
+            const geometry = new THREE.SphereGeometry(0.5, 8, 8);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x555555,
+                transparent: true,
+                opacity: 0.4
+            });
+            const particle = new THREE.Mesh(geometry, material);
+            particle.position.set(
+                x + (Math.random() - 0.5) * 4,
+                y,
+                z + (Math.random() - 0.5) * 4
+            );
+            particle.velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.05,
+                0.1 + Math.random() * 0.1,
+                (Math.random() - 0.5) * 0.05
+            );
+            scene.add(particle);
+            particles.push({ mesh: particle, life: 100 });
+        }
+
+        function createSparkParticle(x, y, z) {
+            const geometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0xffff00,
+                transparent: true,
+                opacity: 1
+            });
+            const particle = new THREE.Mesh(geometry, material);
+            particle.position.set(x, y, z);
+            particle.velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.3,
+                Math.random() * 0.2,
+                (Math.random() - 0.5) * 0.3
+            );
+            scene.add(particle);
+            particles.push({ mesh: particle, life: 30 });
+        }
+
+        function createBubbleParticle(x, y, z) {
+            const geometry = new THREE.SphereGeometry(0.15, 8, 8);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0xaaaaaa,
+                transparent: true,
+                opacity: 0.6
+            });
+            const particle = new THREE.Mesh(geometry, material);
+            particle.position.set(
+                x + (Math.random() - 0.5) * 2,
+                y,
+                z + (Math.random() - 0.5) * 2
+            );
+            particle.velocity = new THREE.Vector3(0, 0.15, 0);
+            scene.add(particle);
+            particles.push({ mesh: particle, life: 50 });
+        }
+
+        function createMoltenFlowParticle(x, y, z) {
+            const geometry = new THREE.SphereGeometry(0.2, 8, 8);
+            const material = new THREE.MeshStandardMaterial({
+                color: 0xff6600,
+                emissive: 0xff4400,
+                emissiveIntensity: 0.8
+            });
+            const particle = new THREE.Mesh(geometry, material);
+            particle.position.set(
+                x + (Math.random() - 0.5) * 8,
+                y,
+                z
+            );
+            particle.velocity = new THREE.Vector3(0, -0.3, 0);
+            scene.add(particle);
+            particles.push({ mesh: particle, life: 40 });
+        }
+
+        function createSteamParticle(x, y, z) {
+            const geometry = new THREE.SphereGeometry(0.4, 8, 8);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0xddeeff,
+                transparent: true,
+                opacity: 0.7
+            });
+            const particle = new THREE.Mesh(geometry, material);
+            particle.position.set(x, y, z);
+            particle.velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.15,
+                0.2 + Math.random() * 0.1,
+                (Math.random() - 0.5) * 0.15
+            );
+            scene.add(particle);
+            particles.push({ mesh: particle, life: 70 });
+        }
+
+        function createMoltenSteelSplash(x, y, z) {
+            const geometry = new THREE.SphereGeometry(0.15, 8, 8);
+            const material = new THREE.MeshStandardMaterial({
+                color: 0xffaa00,
+                emissive: 0xff6600,
+                emissiveIntensity: 1.2
+            });
+            const particle = new THREE.Mesh(geometry, material);
+            particle.position.set(x, y, z);
+            particle.velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.4,
+                0.3 + Math.random() * 0.2,
+                (Math.random() - 0.5) * 0.4
+            );
+            scene.add(particle);
+            particles.push({ mesh: particle, life: 40 });
+        }
+
+        function createWaterSplash(x, y, z) {
+            for (let i = 0; i < 5; i++) {
+                const geometry = new THREE.SphereGeometry(0.1, 6, 6);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0x88ddff,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const particle = new THREE.Mesh(geometry, material);
+                particle.position.set(x + (Math.random() - 0.5), y, z + (Math.random() - 0.5));
+                particle.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.2,
+                    0.1 + Math.random() * 0.15,
+                    (Math.random() - 0.5) * 0.2
+                );
+                scene.add(particle);
+                particles.push({ mesh: particle, life: 30 });
+            }
+        }
+
+        function createLaserScan() {
+            const geometry = new THREE.PlaneGeometry(15, 0.1);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x00ff00,
+                transparent: true,
+                opacity: 0.7,
+                side: THREE.DoubleSide
+            });
+            const laser = new THREE.Mesh(geometry, material);
+            laser.position.set(0, 2, 38);
+            laser.rotation.x = Math.PI / 2;
+            scene.add(laser);
+            
+            let count = 0;
+            const interval = setInterval(() => {
+                laser.position.z += 0.5;
+                laser.material.opacity -= 0.1;
+                count++;
+                if (count > 10) {
+                    scene.remove(laser);
+                    clearInterval(interval);
+                }
+            }, 100);
+        }
+
+        function updateParticles() {
+            particles.forEach((p, index) => {
+                if (p.mesh && p.velocity) {
+                    p.mesh.position.add(p.velocity);
+                    
+                    // Gravedad para partículas que caen
+                    if (p.velocity.y < 0) {
+                        p.velocity.y -= 0.015;
+                    }
+                    
+                    // Gravedad para salpicaduras de acero fundido
+                    if (p.mesh.material.emissive && p.mesh.material.emissive.getHex() === 0xff6600) {
+                        p.velocity.y -= 0.02;
+                    }
+                    
+                    // Fade out más lento para mejor visibilidad
+                    if (p.mesh.material.opacity !== undefined) {
+                        p.mesh.material.opacity -= 0.008;
+                    }
+                    
+                    // Escalar humo (crece al subir)
+                    const color = p.mesh.material.color ? p.mesh.material.color.getHex() : 0;
+                    if (color === 0x555555 || color === 0xddeeff) {
+                        p.mesh.scale.multiplyScalar(1.03);
+                    }
+                    
+                    // Rotación de partículas sólidas
+                    if (p.mesh.geometry.type === 'BoxGeometry') {
+                        p.mesh.rotation.x += 0.05;
+                        p.mesh.rotation.y += 0.05;
+                    }
+                    
+                    p.life--;
+                    
+                    // Eliminar partículas muertas
+                    if (p.life <= 0 || (p.mesh.material.opacity && p.mesh.material.opacity <= 0)) {
+                        scene.remove(p.mesh);
+                        particles.splice(index, 1);
+                    }
+                }
+            });
+        }
+
+        window.toggleAnimation = function() {
+            isAnimating = !isAnimating;
+            autoProgress = isAnimating;
+            const btn = document.getElementById('playBtn');
+            btn.textContent = isAnimating ? '⏸️ Pause' : '▶️ Play';
+            btn.classList.toggle('active');
+            if (isAnimating) {
+                stageTimer = 0;
+                updateStageInfo();
+            }
+        };
+
+        window.nextStage = function() {
+            currentStage = (currentStage + 1) % stages.length;
+            stageTimer = 0;
+            cleanupStage();
+            updateStageInfo();
+        };
+
+        window.previousStage = function() {
+            currentStage = (currentStage - 1 + stages.length) % stages.length;
+            stageTimer = 0;
+            cleanupStage();
+            updateStageInfo();
+        };
+
+        function cleanupStage() {
+            // Limpiar partículas y objetos temporales
+            particles.forEach(p => {
+                if (p.mesh) scene.remove(p.mesh);
+            });
+            particles = [];
+            
+            // Limpiar objetos específicos de etapas
+            if (conveyorBelt) {
+                scene.remove(conveyorBelt);
+                conveyorBelt = null;
+            }
+            
+            if (moltenSteel) {
+                scene.remove(moltenSteel);
+                moltenSteel = null;
+            }
+        }
+
+        window.changeView = function() {
+            const view = document.getElementById('viewSelector').value;
+            
+            switch(view) {
+                case 'overview':
+                    camera.position.set(40, 25, 50);
+                    controls.target.set(0, 10, 0);
+                    break;
+                case 'furnace':
+                    camera.position.set(15, 15, 15);
+                    controls.target.set(0, 8, 0);
+                    break;
+                case 'casting':
+                    camera.position.set(0, 15, 45);
+                    controls.target.set(0, 10, 25);
+                    break;
+                case 'storage':
+                    camera.position.set(-30, 15, -20);
+                    controls.target.set(-30, 6, -30);
+                    break;
+                case 'aerial':
+                    camera.position.set(0, 60, 0);
+                    controls.target.set(0, 0, 0);
+                    break;
+            }
+        };
+
+        window.resetView = function() {
+            camera.position.set(40, 25, 50);
+            controls.target.set(0, 10, 0);
+            currentStage = 0;
+            isAnimating = false;
+            document.getElementById('playBtn').textContent = '▶️ Play';
+            document.getElementById('playBtn').classList.remove('active');
+            updateStageInfo();
+        };
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Iniciar
+        init();
+        updateStageInfo();
+    </script>
+</body>
+</html>
+
