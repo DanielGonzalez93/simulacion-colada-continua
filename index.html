@@ -5,10 +5,96 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <title>Colada Continua 3D - Simulación (Responsive)</title>
+  <title>Simulación Completa Colada Continua - Proceso Industrial</title>
   <style>
     html, body { margin:0; height:100%; background:#0b0f1a; color:#eee; font-family:Segoe UI, Roboto, Arial, sans-serif; overflow:hidden; touch-action: none; }
     #scene { position:fixed; inset:0; cursor:pointer; touch-action: none; }
+    
+    /* ====================================
+       PANEL DE NAVEGACIÓN POR PASOS
+       ==================================== */
+    #stepsNav {
+      position: fixed;
+      top: 50%;
+      right: 20px;
+      transform: translateY(-50%);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .step-btn {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.85);
+      border: 3px solid #00d1b2;
+      color: #00d1b2;
+      font-weight: 700;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 15px rgba(0,209,178,0.3);
+    }
+    
+    .step-btn:hover {
+      transform: scale(1.15);
+      box-shadow: 0 6px 25px rgba(0,209,178,0.6);
+      border-width: 4px;
+    }
+    
+    .step-btn.active {
+      background: #00d1b2;
+      color: #0b0f1a;
+      border-color: #00ffcc;
+      box-shadow: 0 8px 30px rgba(0,255,204,0.8);
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 8px 30px rgba(0,255,204,0.8); }
+      50% { box-shadow: 0 12px 40px rgba(0,255,204,1); }
+    }
+    
+    .step-btn.completed {
+      background: rgba(0,209,178,0.3);
+      border-color: #00d1b2;
+    }
+    
+    /* Información del paso actual */
+    #stepInfo {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.9);
+      border: 3px solid #00d1b2;
+      border-radius: 15px;
+      padding: 15px 30px;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.7);
+      text-align: center;
+      min-width: 400px;
+    }
+    
+    #stepTitle {
+      font-size: 24px;
+      font-weight: 700;
+      color: #00d1b2;
+      margin: 0 0 5px 0;
+    }
+    
+    #stepDesc {
+      font-size: 14px;
+      color: #aaa;
+      margin: 0;
+    }
     
     /* Botones flotantes compactos - RESPONSIVE */
     .float-btn {
@@ -281,6 +367,21 @@
 <body>
   <canvas id="scene"></canvas>
   
+  <!-- Panel de Información del Paso Actual -->
+  <div id="stepInfo">
+    <h2 id="stepTitle">Paso 1: Recepción de Materia Prima</h2>
+    <p id="stepDesc">Camión llega, pasa por báscula y descarga material</p>
+  </div>
+  
+  <!-- Navegación por Pasos -->
+  <div id="stepsNav">
+    <div class="step-btn active" data-step="1" title="Recepción MP">1</div>
+    <div class="step-btn" data-step="2" title="Transporte Interno">2</div>
+    <div class="step-btn" data-step="3" title="Carga al Horno">3</div>
+    <div class="step-btn" data-step="4" title="Fusión">4</div>
+    <div class="step-btn" data-step="5" title="Colada Continua">5</div>
+  </div>
+  
   <!-- Botones flotantes compactos -->
   <div id="hudBtn" class="float-btn">
     <span>🌡️</span>
@@ -528,6 +629,45 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
+    // =================================================
+    // SISTEMA DE PASOS/ESCENAS DE LA SIMULACIÓN
+    // =================================================
+    let currentStep = 1; // Paso actual (1-5)
+    
+    const stepData = {
+      1: {
+        title: "Paso 1: Recepción de Materia Prima",
+        desc: "Camión llega, báscula, descarga lateral",
+        camera: {x: 150, y: 80, z: 150},
+        lookAt: {x: 0, y: 0, z: 0}
+      },
+      2: {
+        title: "Paso 2: Transporte Interno",
+        desc: "Montaña de material, cargador, tolva y banda",
+        camera: {x: 100, y: 60, z: 120},
+        lookAt: {x: 0, y: 0, z: 0}
+      },
+      3: {
+        title: "Paso 3: Carga al Horno",
+        desc: "Grúa con electroimán, cesta de carga, alimentación horno",
+        camera: {x: -80, y: 50, z: 80},
+        lookAt: {x: -60, y: 20, z: 0}
+      },
+      4: {
+        title: "Paso 4: Fusión Electromagnética",
+        desc: "Proceso de fusión 10 Ton/H, subestación eléctrica",
+        camera: {x: -100, y: 60, z: -40},
+        lookAt: {x: -60, y: 20, z: 0}
+      },
+      5: {
+        title: "Paso 5: Colada Continua",
+        desc: "Vertido del ladle, moldeo y enfriamiento del hilo",
+        camera: {x: 80, y: 45, z: 110},
+        lookAt: {x: 0, y: 10, z: 0}
+      }
+    };
+    
+    // Variables globales de la escena
     let scene, camera, renderer; let isRunning=true; let t=0;
     let rollersV=[], rollersH=[], sprays=[], molten, ladle, strand, particles=[], tundishPool;
     let path, pathLen=1, u=0;
@@ -536,8 +676,78 @@
     let furnaceMolten; // Chorro del horno al ladle
     let furnaceParticles = []; // Gotas del horno al ladle
     const params={ speed:0.005 }; // Más lento para ver el proceso
+    
+    // Grupos de objetos por paso (para mostrar/ocultar)
+    let step1Objects = []; // Camión, báscula, zona descarga
+    let step2Objects = []; // Montaña externa, cargador, tolva, banda
+    let step3Objects = []; // Montaña interna, grúa electroimán, cesta
+    let step4Objects = []; // Subestación eléctrica, transformador
+    let step5Objects = []; // Simulación actual (ladle, tundish, molde, etc)
 
     init(); animate();
+    
+    // Función para cambiar de paso
+    function changeStep(newStep){
+      if(newStep < 1 || newStep > 5) return;
+      
+      currentStep = newStep;
+      
+      // Actualizar UI
+      document.getElementById('stepTitle').textContent = stepData[newStep].title;
+      document.getElementById('stepDesc').textContent = stepData[newStep].desc;
+      
+      // Actualizar botones
+      document.querySelectorAll('.step-btn').forEach(btn => {
+        const btnStep = parseInt(btn.getAttribute('data-step'));
+        btn.classList.remove('active');
+        if(btnStep === newStep){
+          btn.classList.add('active');
+        }
+        if(btnStep < newStep){
+          btn.classList.add('completed');
+        } else {
+          btn.classList.remove('completed');
+        }
+      });
+      
+      // Mover cámara a la posición del paso
+      if(camera){
+        const camData = stepData[newStep].camera;
+        const lookData = stepData[newStep].lookAt;
+        camera.position.set(camData.x, camData.y, camData.z);
+        camera.lookAt(lookData.x, lookData.y, lookData.z);
+      }
+      
+      // Mostrar/ocultar objetos según el paso
+      toggleStepObjects();
+    }
+    
+    // Función para mostrar/ocultar objetos según el paso activo
+    function toggleStepObjects(){
+      // Ocultar todos los grupos primero
+      step1Objects.forEach(obj => obj.visible = false);
+      step2Objects.forEach(obj => obj.visible = false);
+      step3Objects.forEach(obj => obj.visible = false);
+      step4Objects.forEach(obj => obj.visible = false);
+      step5Objects.forEach(obj => obj.visible = false);
+      
+      // Mostrar solo los del paso actual y pasos anteriores (mantener contexto)
+      if(currentStep >= 1) step1Objects.forEach(obj => obj.visible = true);
+      if(currentStep >= 2) step2Objects.forEach(obj => obj.visible = true);
+      if(currentStep >= 3) step3Objects.forEach(obj => obj.visible = true);
+      if(currentStep >= 4) step4Objects.forEach(obj => obj.visible = true);
+      if(currentStep >= 5) step5Objects.forEach(obj => obj.visible = true);
+    }
+    
+    // Event listeners para navegación
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.step-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const step = parseInt(btn.getAttribute('data-step'));
+          changeStep(step);
+        });
+      });
+    });
 
     function init(){
       try {
@@ -709,7 +919,15 @@
       scene.add(axes);
       console.log('Ejes agregados');
 
-      console.log('Construyendo horno...');
+      console.log('Construyendo elementos del PASO 1...');
+      buildStep1_Reception();
+      console.log('Construyendo elementos del PASO 2...');
+      buildStep2_InternalTransport();
+      console.log('Construyendo elementos del PASO 3...');
+      buildStep3_FurnaceLoading();
+      console.log('Construyendo elementos del PASO 4...');
+      buildStep4_ElectricalSubstation();
+      console.log('Construyendo horno y PASO 5...');
       buildInductionFurnace();
       console.log('Construyendo ladle y tundish...');
       buildLadleTundishMold();
@@ -892,6 +1110,411 @@
           }
         });
       });
+    }
+
+    // ============================================================
+    // PASO 1: RECEPCIÓN DE MATERIA PRIMA
+    // Camión llega, báscula, descarga lateral
+    // ============================================================
+    let truckGroup, truckBody; // Variables globales para animación del camión
+    
+    function buildStep1_Reception(){
+      const STEP1_AREA_X = 200; // Zona externa alejada de la bodega
+      
+      // ===== BÁSCULA =====
+      const scaleGroup = new THREE.Group();
+      
+      // Plataforma de la báscula
+      const scalePlatform = new THREE.Mesh(
+        new THREE.BoxGeometry(15, 0.8, 25),
+        new THREE.MeshStandardMaterial({color: 0x4a4a4a, metalness: 0.7, roughness: 0.4})
+      );
+      scalePlatform.position.y = 0.4;
+      scalePlatform.castShadow = true;
+      scalePlatform.receiveShadow = true;
+      scaleGroup.add(scalePlatform);
+      
+      // Estructura de soporte de la báscula
+      for(let x of [-6, 6]){
+        for(let z of [-10, 10]){
+          const support = new THREE.Mesh(
+            new THREE.BoxGeometry(1.5, 3, 1.5),
+            new THREE.MeshStandardMaterial({color: 0x333333, metalness: 0.8})
+          );
+          support.position.set(x, -1.1, z);
+          support.castShadow = true;
+          scaleGroup.add(support);
+        }
+      }
+      
+      // Caseta de control de báscula
+      const scaleHouse = new THREE.Mesh(
+        new THREE.BoxGeometry(4, 5, 4),
+        new THREE.MeshStandardMaterial({color: 0x5588cc, metalness: 0.5, roughness: 0.5})
+      );
+      scaleHouse.position.set(-12, 2.5, 0);
+      scaleHouse.castShadow = true;
+      scaleGroup.add(scaleHouse);
+      
+      // Ventana de la caseta
+      const window1 = new THREE.Mesh(
+        new THREE.BoxGeometry(0.2, 2, 2),
+        new THREE.MeshStandardMaterial({color: 0x88ccff, emissive: 0x4488cc, emissiveIntensity: 0.5})
+      );
+      window1.position.set(-9.9, 3, 0);
+      scaleGroup.add(window1);
+      
+      // Display digital de la báscula
+      const display = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, 1.5, 3),
+        new THREE.MeshStandardMaterial({color: 0x00ff00, emissive: 0x00ff00, emissiveIntensity: 2})
+      );
+      display.position.set(-12, 6, 0);
+      scaleGroup.add(display);
+      
+      scaleGroup.position.set(STEP1_AREA_X, 0, 0);
+      scene.add(scaleGroup);
+      step1Objects.push(scaleGroup);
+      
+      // ===== ZONA DE DESCARGA =====
+      const unloadArea = new THREE.Mesh(
+        new THREE.BoxGeometry(30, 0.3, 30),
+        new THREE.MeshStandardMaterial({color: 0x555555, metalness: 0.6, roughness: 0.7})
+      );
+      unloadArea.position.set(STEP1_AREA_X + 40, 0.15, 0);
+      unloadArea.receiveShadow = true;
+      scene.add(unloadArea);
+      step1Objects.push(unloadArea);
+      
+      // Bordes de la zona de descarga
+      const borderMat = new THREE.MeshStandardMaterial({color: 0xffff00, metalness: 0.7});
+      for(let i = 0; i < 4; i++){
+        const border = new THREE.Mesh(
+          new THREE.BoxGeometry(i % 2 === 0 ? 30 : 0.3, 1, i % 2 === 0 ? 0.3 : 30),
+          borderMat
+        );
+        const x = i % 2 === 0 ? 0 : (i === 1 ? 15 : -15);
+        const z = i % 2 === 0 ? (i === 0 ? 15 : -15) : 0;
+        border.position.set(STEP1_AREA_X + 40 + x, 0.5, z);
+        border.castShadow = true;
+        scene.add(border);
+        step1Objects.push(border);
+      }
+      
+      // ===== CAMIÓN DE CARGA (DUMP TRUCK) =====
+      truckGroup = new THREE.Group();
+      
+      // Chasis del camión
+      const chassis = new THREE.Mesh(
+        new THREE.BoxGeometry(6, 2, 14),
+        new THREE.MeshStandardMaterial({color: 0xff6600, metalness: 0.7, roughness: 0.3})
+      );
+      chassis.position.y = 2;
+      chassis.castShadow = true;
+      truckGroup.add(chassis);
+      
+      // Cabina del camión
+      const cabin = new THREE.Mesh(
+        new THREE.BoxGeometry(6, 3.5, 4),
+        new THREE.MeshStandardMaterial({color: 0xcc3300, metalness: 0.8, roughness: 0.2})
+      );
+      cabin.position.set(0, 3.75, -6);
+      cabin.castShadow = true;
+      truckGroup.add(cabin);
+      
+      // Parabrisas
+      const windshield = new THREE.Mesh(
+        new THREE.BoxGeometry(5.8, 2.5, 0.3),
+        new THREE.MeshStandardMaterial({color: 0x88ccff, transparent: true, opacity: 0.7, metalness: 0.9})
+      );
+      windshield.position.set(0, 4, -3.8);
+      windshield.rotation.x = Math.PI / 8;
+      truckGroup.add(windshield);
+      
+      // Volco/Tolva (parte que bascula)
+      truckBody = new THREE.Group();
+      const dumpBody = new THREE.Mesh(
+        new THREE.BoxGeometry(5.8, 3, 10),
+        new THREE.MeshStandardMaterial({color: 0x444444, metalness: 0.6, roughness: 0.5})
+      );
+      dumpBody.position.y = 1.5;
+      dumpBody.castShadow = true;
+      truckBody.add(dumpBody);
+      
+      // Material dentro del volco (chatarra metálica)
+      const material = new THREE.Mesh(
+        new THREE.BoxGeometry(5.5, 2, 9.5),
+        new THREE.MeshStandardMaterial({color: 0x666666, metalness: 0.8, roughness: 0.4})
+      );
+      material.position.y = 2.5;
+      truckBody.add(material);
+      
+      truckBody.position.set(0, 2, 2);
+      truckGroup.add(truckBody);
+      
+      // Ruedas del camión
+      const wheelGeom = new THREE.CylinderGeometry(1.2, 1.2, 1.5, 16);
+      const wheelMat = new THREE.MeshStandardMaterial({color: 0x222222, metalness: 0.5, roughness: 0.8});
+      
+      const wheelPositions = [
+        {x: -3, z: -7}, {x: 3, z: -7},  // Ruedas delanteras
+        {x: -3, z: 3}, {x: 3, z: 3},    // Ruedas traseras 1
+        {x: -3, z: 6}, {x: 3, z: 6}     // Ruedas traseras 2
+      ];
+      
+      wheelPositions.forEach(pos => {
+        const wheel = new THREE.Mesh(wheelGeom, wheelMat);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.set(pos.x, 0.8, pos.z);
+        wheel.castShadow = true;
+        truckGroup.add(wheel);
+      });
+      
+      // Posición inicial del camión (fuera de escena)
+      truckGroup.position.set(STEP1_AREA_X + 80, 0, 0);
+      truckGroup.rotation.y = Math.PI; // Mirando hacia la báscula
+      scene.add(truckGroup);
+      step1Objects.push(truckGroup);
+      
+      // Señalización y pavimento
+      const roadway = new THREE.Mesh(
+        new THREE.BoxGeometry(150, 0.2, 12),
+        new THREE.MeshStandardMaterial({color: 0x2a2a2a, roughness: 0.9})
+      );
+      roadway.position.set(STEP1_AREA_X + 40, 0.1, 0);
+      roadway.receiveShadow = true;
+      scene.add(roadway);
+      step1Objects.push(roadway);
+      
+      // Líneas amarillas del camino
+      for(let x = STEP1_AREA_X - 30; x < STEP1_AREA_X + 110; x += 6){
+        const line = new THREE.Mesh(
+          new THREE.BoxGeometry(4, 0.25, 0.3),
+          new THREE.MeshStandardMaterial({color: 0xffff00, emissive: 0xaaaa00, emissiveIntensity: 0.3})
+        );
+        line.position.set(x, 0.25, 0);
+        scene.add(line);
+        step1Objects.push(line);
+      }
+      
+      console.log('Paso 1 construido: Recepción de materia prima');
+    }
+    
+    // ============================================================
+    // PASO 2: TRANSPORTE INTERNO
+    // Montaña de material, cargador, tolva, banda transportadora
+    // ============================================================
+    function buildStep2_InternalTransport(){
+      const STEP2_AREA_X = 240; // Zona externa
+      const STEP2_AREA_Z = -40;
+      
+      // ===== MONTAÑA DE MATERIAL (tipo arena/chatarra) =====
+      const pileGroup = new THREE.Group();
+      
+      // Geometría de montaña (cono irregular)
+      const pileGeom = new THREE.ConeGeometry(15, 12, 32, 4);
+      const pileMat = new THREE.MeshStandardMaterial({
+        color: 0x555555,
+        metalness: 0.6,
+        roughness: 0.8,
+        flatShading: true
+      });
+      const pile = new THREE.Mesh(pileGeom, pileMat);
+      pile.position.y = 6;
+      pile.castShadow = true;
+      pile.receiveShadow = true;
+      pileGroup.add(pile);
+      
+      // Partículas/detalles en la montaña
+      for(let i = 0; i < 20; i++){
+        const particle = new THREE.Mesh(
+          new THREE.BoxGeometry(0.5, 0.5, 0.5),
+          new THREE.MeshStandardMaterial({color: 0x666666})
+        );
+        particle.position.set(
+          (Math.random() - 0.5) * 20,
+          Math.random() * 10,
+          (Math.random() - 0.5) * 20
+        );
+        particle.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        particle.castShadow = true;
+        pileGroup.add(particle);
+      }
+      
+      pileGroup.position.set(STEP2_AREA_X, 0, STEP2_AREA_Z);
+      scene.add(pileGroup);
+      step2Objects.push(pileGroup);
+      
+      // ===== CARGADOR FRONTAL (WHEEL LOADER) =====
+      const loaderGroup = new THREE.Group();
+      
+      // Cuerpo principal del cargador
+      const loaderBody = new THREE.Mesh(
+        new THREE.BoxGeometry(5, 3, 7),
+        new THREE.MeshStandardMaterial({color: 0xffcc00, metalness: 0.7, roughness: 0.3})
+      );
+      loaderBody.position.y = 2.5;
+      loaderBody.castShadow = true;
+      loaderGroup.add(loaderBody);
+      
+      // Cabina
+      const loaderCabin = new THREE.Mesh(
+        new THREE.BoxGeometry(3, 2.5, 3),
+        new THREE.MeshStandardMaterial({color: 0xffaa00, metalness: 0.8})
+      );
+      loaderCabin.position.set(0, 4.25, -1);
+      loaderCabin.castShadow = true;
+      loaderGroup.add(loaderCabin);
+      
+      // Brazo del cargador
+      const arm1 = new THREE.Mesh(
+        new THREE.BoxGeometry(0.8, 5, 0.8),
+        new THREE.MeshStandardMaterial({color: 0x333333, metalness: 0.9})
+      );
+      arm1.position.set(-2, 4, 2);
+      arm1.rotation.z = -Math.PI / 6;
+      arm1.castShadow = true;
+      loaderGroup.add(arm1);
+      
+      const arm2 = arm1.clone();
+      arm2.position.set(2, 4, 2);
+      arm2.rotation.z = Math.PI / 6;
+      loaderGroup.add(arm2);
+      
+      // Cuchara/Balde
+      const bucket = new THREE.Mesh(
+        new THREE.BoxGeometry(5, 2, 3),
+        new THREE.MeshStandardMaterial({color: 0x555555, metalness: 0.7})
+      );
+      bucket.position.set(0, 5.5, 4);
+      bucket.rotation.x = Math.PI / 8;
+      bucket.castShadow = true;
+      loaderGroup.add(bucket);
+      
+      // Ruedas grandes
+      const loaderWheelGeom = new THREE.CylinderGeometry(1.5, 1.5, 1.2, 20);
+      const loaderWheelMat = new THREE.MeshStandardMaterial({color: 0x1a1a1a, metalness: 0.4, roughness: 0.9});
+      
+      for(let z of [-2, 2]){
+        for(let x of [-2.5, 2.5]){
+          const wheel = new THREE.Mesh(loaderWheelGeom, loaderWheelMat);
+          wheel.rotation.z = Math.PI / 2;
+          wheel.position.set(x, 1, z);
+          wheel.castShadow = true;
+          loaderGroup.add(wheel);
+        }
+      }
+      
+      loaderGroup.position.set(STEP2_AREA_X - 10, 0, STEP2_AREA_Z + 5);
+      loaderGroup.rotation.y = Math.PI / 4;
+      scene.add(loaderGroup);
+      step2Objects.push(loaderGroup);
+      
+      // ===== TOLVA DE RECEPCIÓN =====
+      const hopperGroup = new THREE.Group();
+      
+      // Estructura de la tolva (forma de embudo)
+      const hopperTop = new THREE.Mesh(
+        new THREE.CylinderGeometry(8, 4, 6, 8, 1, true),
+        new THREE.MeshStandardMaterial({color: 0x3366cc, metalness: 0.7, side: THREE.DoubleSide})
+      );
+      hopperTop.position.y = 8;
+      hopperTop.castShadow = true;
+      hopperGroup.add(hopperTop);
+      
+      // Parte inferior (salida)
+      const hopperBottom = new THREE.Mesh(
+        new THREE.CylinderGeometry(4, 2, 4, 8),
+        new THREE.MeshStandardMaterial({color: 0x2244aa, metalness: 0.8})
+      );
+      hopperBottom.position.y = 3;
+      hopperBottom.castShadow = true;
+      hopperGroup.add(hopperBottom);
+      
+      // Soportes de la tolva
+      for(let angle = 0; angle < Math.PI * 2; angle += Math.PI / 2){
+        const support = new THREE.Mesh(
+          new THREE.BoxGeometry(0.8, 11, 0.8),
+          new THREE.MeshStandardMaterial({color: 0x444444, metalness: 0.9})
+        );
+        support.position.set(Math.cos(angle) * 6, 5.5, Math.sin(angle) * 6);
+        support.castShadow = true;
+        hopperGroup.add(support);
+      }
+      
+      hopperGroup.position.set(STEP2_AREA_X - 40, 0, STEP2_AREA_Z);
+      scene.add(hopperGroup);
+      step2Objects.push(hopperGroup);
+      
+      // ===== BANDA TRANSPORTADORA =====
+      const conveyorLength = 80;
+      const conveyorGroup = new THREE.Group();
+      
+      // Estructura de soporte
+      for(let x = 0; x < conveyorLength; x += 8){
+        const support = new THREE.Mesh(
+          new THREE.BoxGeometry(1, 8, 1),
+          new THREE.MeshStandardMaterial({color: 0x555555, metalness: 0.8})
+        );
+        support.position.set(x, 4, 0);
+        support.castShadow = true;
+        conveyorGroup.add(support);
+      }
+      
+      // Banda (cinta)
+      const belt = new THREE.Mesh(
+        new THREE.BoxGeometry(conveyorLength, 0.5, 3),
+        new THREE.MeshStandardMaterial({color: 0x222222, metalness: 0.3, roughness: 0.8})
+      );
+      belt.position.set(conveyorLength / 2, 8, 0);
+      belt.castShadow = true;
+      belt.receiveShadow = true;
+      conveyorGroup.add(belt);
+      
+      // Rodillos
+      for(let x = 0; x < conveyorLength; x += 4){
+        const roller = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.3, 0.3, 3.5, 12),
+          new THREE.MeshStandardMaterial({color: 0x666666, metalness: 0.9})
+        );
+        roller.rotation.z = Math.PI / 2;
+        roller.position.set(x, 7.8, 0);
+        conveyorGroup.add(roller);
+      }
+      
+      // Motor de la banda
+      const motor = new THREE.Mesh(
+        new THREE.BoxGeometry(2, 2, 2),
+        new THREE.MeshStandardMaterial({color: 0x0066cc, metalness: 0.8})
+      );
+      motor.position.set(0, 6, 3);
+      motor.castShadow = true;
+      conveyorGroup.add(motor);
+      
+      conveyorGroup.position.set(STEP2_AREA_X - 80, 0, STEP2_AREA_Z);
+      conveyorGroup.rotation.y = -Math.PI / 8;
+      scene.add(conveyorGroup);
+      step2Objects.push(conveyorGroup);
+      
+      console.log('Paso 2 construido: Transporte interno');
+    }
+    
+    // ============================================================
+    // PASO 3: CARGA AL HORNO
+    // Montaña interna, grúa con electroimán, cesta de carga
+    // ============================================================
+    function buildStep3_FurnaceLoading(){
+      // Esta función será implementada en el siguiente bloque
+      console.log('Paso 3: Pendiente de implementación completa');
+    }
+    
+    // ============================================================
+    // PASO 4: SUBESTACIÓN ELÉCTRICA
+    // Subestación 115kV con transformador 10MVA
+    // ============================================================
+    function buildStep4_ElectricalSubstation(){
+      // Esta función será implementada en el siguiente bloque
+      console.log('Paso 4: Pendiente de implementación completa');
     }
 
     // HORNO DE INDUCCIÓN con conexión al transformador
